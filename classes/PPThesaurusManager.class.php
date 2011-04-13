@@ -77,7 +77,7 @@ class PPThesaurusManager {
 		// Um die gefundenen Begriffe im Content einen speziellen Tag legen (nur dem 1. Fund pro Begriff)
 		$sTagName = 'pp-thesaurus-code';
 		foreach($aConcepts as $aConcept){
-			$sLabel = $aConcept['label'];
+			$sLabel = addcslashes($aConcept['label'], '/.*+');
 			$sLabelSearch = '/\b' . $sLabel . '\b/i';
 			$sLabelReplace = '<' . $sTagName . ' label="' . $sLabel . '">$0</' . $sTagName . '>';
 			$sContent = preg_replace($sLabelSearch, $sLabelReplace, $sContent, 1, $count);
@@ -192,42 +192,61 @@ class PPThesaurusManager {
 	public function getTemplatePage () {
 		$iPPThesaurusId = get_option('PPThesaurusId');
 
-		$aChildren = get_children(array('numberposts'	=> 1,
-										'post_parent'	=> $iPPThesaurusId,
-										'post_type'		=> 'page'));
+		$oParent 	= get_page($iPPGlossaryId);
+		$aChildren 	= get_children(array('numberposts'	=> 1,
+										 'post_parent'	=> $iPPThesaurusId,
+										 'post_type'	=> 'page'));
+		$oChild = array_shift($aChildren);
 
-		return array_shift($aChildren);
+		return get_option('siteurl') . '/' . $oParent->post_name . '/' . $oChild->post_name;
 	}
 
 
-	public function getItem ($sLabel, $bWithRelations=true) {
+	public function getItem ($sLabel, $sType='label', $bWithRelations=true) {
 		$sLabel = trim($sLabel);
 		if (empty($sLabel)) {
 			return null;
 		}
 
-		$sQuery = "
-			PREFIX skos: <" . $this->sSkosUri . ">
+		if ($sType == 'label') {
+			$sQuery = "
+				PREFIX skos: <" . $this->sSkosUri . ">
 
-			SELECT *
-			WHERE {
-			  ?concept a skos:Concept .
-			  ?concept skos:prefLabel ?prefLabel .
-			  OPTIONAL {?concept skos:altLabel ?altLabel . }
-			  OPTIONAL {?concept skos:hiddenLabel ?hiddenLabel . }
-			  OPTIONAL {?concept skos:definition ?definition . }
-			  OPTIONAL {?concept skos:scopeNote ?scopeNote . }
+				SELECT *
+				WHERE {
+				  ?concept a skos:Concept .
+				  ?concept skos:prefLabel ?prefLabel FILTER (lang(?prefLabel) = '" . $this->sLanguage . "') .
+				  ?concept skos:definition ?definition FILTER (lang(?definition) = '" . $this->sLanguage . "') .
+				  OPTIONAL {?concept skos:altLabel ?altLabel FILTER (lang(?altLabel) = '" . $this->sLanguage . "') . }
+				  OPTIONAL {?concept skos:hiddenLabel ?hiddenLabel FILTER (lang(?hiddenLabel) = '" . $this->sLanguage . "') . }
+				  OPTIONAL {?concept skos:scopeNote ?scopeNote FILTER (lang(?scopeNote) = '" . $this->sLanguage . "') . }
 
-				{ ?concept skos:prefLabel ?label . }
-			  UNION
-				{ ?concept skos:altLabel ?label . }
-			  UNION
-				{ ?concept skos:hiddenLabel ?label . }
+					{ ?concept skos:prefLabel ?label . }
+				  UNION
+					{ ?concept skos:altLabel ?label . }
+				  UNION
+					{ ?concept skos:hiddenLabel ?label . }
 
-			  FILTER (lang(?label) = '" . $this->sLanguage . "') .
-			  FILTER (?label = '$sLabel')
-			}
-		";
+				  FILTER (lang(?label) = '" . $this->sLanguage . "' && ?label = '$sLabel')
+				}
+			";
+		} else {
+			$sQuery = "
+				PREFIX skos: <" . $this->sSkosUri . ">
+
+				SELECT *
+				WHERE {
+				  ?concept a skos:Concept .
+				  ?concept skos:prefLabel ?prefLabel FILTER (lang(?prefLabel) = '" . $this->sLanguage . "') .
+				  ?concept skos:definition ?definition FILTER (lang(?definition) = '" . $this->sLanguage . "') .
+				  OPTIONAL {?concept skos:altLabel ?altLabel FILTER (lang(?altLabel) = '" . $this->sLanguage . "') . }
+				  OPTIONAL {?concept skos:hiddenLabel ?hiddenLabel FILTER (lang(?hiddenLabel) = '" . $this->sLanguage . "') . }
+				  OPTIONAL {?concept skos:scopeNote ?scopeNote FILTER (lang(?scopeNote) = '" . $this->sLanguage . "') . }
+
+				  FILTER (?concept = '$sLabel')
+				}
+			";
+		}
 		$aRows = $this->oStore->query($sQuery, 'rows');
 
 		if ($this->oStore->getErrors()) {
@@ -242,6 +261,7 @@ class PPThesaurusManager {
 		$aHiddenLables 	= array();
 
 		foreach ($aRows as $aRow) {
+			$oItem->uri = $aRow['concept'];
 			$oItem->prefLabel = $aRow['prefLabel'];
 			if (isset($aRow['altLabel'])) {
 				$aAltLabels[] = $aRow['altLabel'];
@@ -279,11 +299,12 @@ class PPThesaurusManager {
 		$sQuery = "
 			PREFIX skos: <" . $this->sSkosUri . ">
 
-			SELECT ?label
+			SELECT ?relation
 			WHERE {
 			  ?concept a skos:Concept .
 			  ?relation a skos:Concept .
 			  ?relation skos:prefLabel ?label .
+			  ?relation skos:definition ?definition .
 			  ?concept skos:$sRelType ?relation .
 			  
 			  FILTER (lang(?label) = '" . $this->sLanguage . "') .
@@ -299,7 +320,7 @@ class PPThesaurusManager {
 
 		$aResult = array();
 		foreach ($aRows as $aRow) {
-			$aResult[] = $this->getItem($aRow['label'], false);
+			$aResult[] = $this->getItem($aRow['relation'], 'concept', false);
 		}
 
 		return $aResult;
@@ -311,9 +332,10 @@ class PPThesaurusManager {
 			$sQuery = "
 				PREFIX skos: <" . $this->sSkosUri . ">
 
-				SELECT ?concept ?label ?rel
+				SELECT DISTINCT ?concept ?label ?rel
 				WHERE {
 				  ?concept a skos:Concept .
+			  	  ?concept skos:definition ?definition .
 				  ?concept ?rel ?label .
 
 					{ ?concept skos:prefLabel ?label . }

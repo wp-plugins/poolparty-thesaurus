@@ -1,9 +1,9 @@
 <?php
 /*
 Plugin Name: PoolParty Thesaurus
-Plugin URI: http://www.punkt.at
-Description: Instantly adds links to your posts and pages based on a thesaurus of definitions. Requires the <a href="htp://arc.semsol.org/">ARC2 Toolkit</a>
-Version: 1.0
+Plugin URI: http://poolparty.punkt.at
+Description: Instantly adds links to your posts and pages based on a thesaurus of definitions. Requires the <a href="https://github.com/semsol/arc2">ARC2 Toolkit</a>
+Version: 1.1
 Author: Kurt Moser
 Author URI: http://www.punkt.at/8/7/kurt-moser.htm
 */
@@ -174,7 +174,7 @@ function pp_thesaurus_show_list ($sContent) {
 				break;
 
 			case 'enabled':
-				$sContent .= '<li><a href="' . $oPage->guid . '&amp;filter=' . $sChar . '">' . $sLetter . '</a></li>';
+				$sContent .= '<li><a href="' . get_option('siteurl') . '/' . $oPage->post_name . '?filter=' . $sChar . '">' . $sLetter . '</a></li>';
 				break;
 
 			case 'selected':
@@ -187,10 +187,11 @@ function pp_thesaurus_show_list ($sContent) {
 	// generate the list of thesaurus items
 	$aList = $oPPGM->getList($_GET['filter']);
 	$sContent .= '<ul class="PPThesaurusList">';
+	$sLink = pp_thesaurus_link();
 	foreach($aList as $aItem) {
-		$sLink = pp_thesaurus_link() . urlencode($aItem['label']);
+		$sLabel = urlencode($aItem['label']);
 		
-		$sContent .= '<li><a href="' . $sLink . '">' . $aItem['label'] . '</a></li>';
+		$sContent .= '<li><a href="' . $sLink . $sLabel . '">' . $aItem['label'] . '</a></li>';
 	}
 	$sContent .= '</ul>';
 
@@ -198,8 +199,8 @@ function pp_thesaurus_show_list ($sContent) {
 }
 
 function pp_thesaurus_link () {
-	$oTemplate = PPThesaurusManager::getTemplatePage();
-	return $oTemplate->guid . '&amp;label=';
+	$sLink = PPThesaurusManager::getTemplatePage();
+	return $sLink . '?label=';
 }
 
 function pp_thesaurus_to_link ($aItemList) {
