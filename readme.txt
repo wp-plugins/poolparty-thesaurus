@@ -58,6 +58,8 @@ Simply load the updated thesaurus again (admin area - settings -> PoolParty Thes
 
 
 == Changelog ==
+= 1.2 - 21.04.2011 =
+* Few bugfixes
 
 = 1.1 - 13.04.2011 =
 * Bugfix: Compat fix for upgrade
