@@ -3,7 +3,7 @@
 Plugin Name: PoolParty Thesaurus
 Plugin URI: http://poolparty.punkt.at
 Description: Instantly adds links to your posts and pages based on a thesaurus of definitions. Requires the <a href="https://github.com/semsol/arc2">ARC2 Toolkit</a>
-Version: 1.1
+Version: 1.2
 Author: Kurt Moser
 Author URI: http://www.punkt.at/8/7/kurt-moser.htm
 */
