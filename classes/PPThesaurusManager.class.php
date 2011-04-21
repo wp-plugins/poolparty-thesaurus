@@ -75,7 +75,7 @@ class PPThesaurusManager {
 		$aConcepts = $this->getConcepts();
 
 		// Um die gefundenen Begriffe im Content einen speziellen Tag legen (nur dem 1. Fund pro Begriff)
-		$sTagName = 'pp-thesaurus-code';
+		$sTagName = 'pp-thesaurustagname-code';
 		foreach($aConcepts as $aConcept){
 			$sLabel = addcslashes($aConcept['label'], '/.*+');
 			$sLabelSearch = '/\b' . $sLabel . '\b/i';
@@ -134,13 +134,18 @@ class PPThesaurusManager {
 
 		// Um alle restlichen Begriffe einen Link Tag legen
 		$sLinkSearch = '/<' . $sTagName . ' label="(.+?)">(.+?)<\/' . $sTagName . '>/i';
-		$sLinkReplace = '<a class="ppThesaurus" href="' . pp_thesaurus_link() . '$1" title="Item: $1">$2</a>';
+		$sContent = preg_replace_callback($sLinkSearch, array($this, 'replaceLink'), $sContent);
 		$sContent = preg_replace($sLinkSearch, $sLinkReplace, $sContent);
 
 		// Den speziellen Root Tag wieder entfernen
 		$sContent = str_replace(array('<pp-thesaurus>', '</pp-thesaurus>'), array('', ''), $sContent);
 
 		return $sContent;
+	}
+
+
+	private function replaceLink ($aHits) {
+		return '<a class="ppThesaurus" href="' . pp_thesaurus_link() . urlencode($aHits[1]) . '" title="Item: ' . $aHits[1] . '">' . $aHits[2] . '</a>';
 	}
 
 
@@ -192,13 +197,12 @@ class PPThesaurusManager {
 	public function getTemplatePage () {
 		$iPPThesaurusId = get_option('PPThesaurusId');
 
-		$oParent 	= get_page($iPPGlossaryId);
 		$aChildren 	= get_children(array('numberposts'	=> 1,
 										 'post_parent'	=> $iPPThesaurusId,
 										 'post_type'	=> 'page'));
 		$oChild = array_shift($aChildren);
 
-		return get_option('siteurl') . '/' . $oParent->post_name . '/' . $oChild->post_name;
+		return get_page_link($iPPThesaurusId) . '/' . $oChild->post_name;
 	}
 
 
