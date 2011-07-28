@@ -5,7 +5,7 @@ Contributors: kurt-moser
 Tags: poolparty, thesaurus, glossary, skos, rdf
 Requires at least: 2.9
 Tested up to: 2.9
-Stable tag: trunk
+Stable tag: 2.0
 
 
 PoolParty plugin makes websites more understandable. Blogs benefit from linking posts with key terms automatically. The plugin uses SKOS vocabularies.
