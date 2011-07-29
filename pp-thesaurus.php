@@ -126,7 +126,7 @@ function pp_thesaurus_settings_page ($sError='') {
 		<h2><?php _e('PoolParty Thesaurus Settings', 'pp-thesaurus'); ?></h2>
 	<?php
 	if (!empty($sError)) {
-		echo '<p style="color:red;"><strong><?php echo $sError; ?></strong></p>';
+		echo '<p style="color:red;"><strong>' . $sError . '</strong></p>';
 	} elseif (isset($_POST['secureToken']) && empty($sError)) {
 		echo '<p style="color:green;"><strong>' . __('Settings saved', 'pp-thesaurus') . '</strong></p>';
 		if ($pp_thesaurus_updated) {

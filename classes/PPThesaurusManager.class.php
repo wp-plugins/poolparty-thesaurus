@@ -174,7 +174,10 @@ class PPThesaurusManager {
 			foreach ($aData as &$aConcept) {
 				if (isset($aConcept['http://www.w3.org/1999/02/22-rdf-syntax-ns#type'])) {
 					foreach ($aConcept['http://www.w3.org/1999/02/22-rdf-syntax-ns#type'] as &$aType) {
-						$aType['value'] = str_replace(array('(', ')'), array('%28', '%29'), $aType['value']);
+						$aType['value'] = str_replace(array('(', ')', ',', ';'), array('%28', '%29', '%2C', '%3B'), $aType['value']);
+						$iPos = strrpos($aType['value'], '/');
+						$sName = str_replace(array('.', ':'), array('%2E', '%3A'), substr($aType['value'], $iPos));
+						$aType['value'] = substr($aType['value'], 0, $iPos) . $sName;
 					}
 				}
 			}
@@ -238,7 +241,11 @@ class PPThesaurusManager {
 		$aTermMatches = array();
 		foreach($aConcepts as $iId => $oConcept){
 			$sLabel = addcslashes($oConcept->label, '/.*+()');
-			$sLabel = '/(\W)(' . $sLabel . ')(\W)/i';
+			if ($sLabel == strtoupper($sLabel)) {
+				$sLabel = '/(\W)(' . $sLabel . ')(\W)/';
+			} else {
+				$sLabel = '/(\W)(' . $sLabel . ')(\W)/i';
+			}
 			if (preg_match($sLabel, $sContent, $aMatches)) {
 				$aTermMatches[$iId] = $aMatches[2];
 				$sPlaceholder = "$1<pp-termplaceholder>$iId</pp-termplaceholder>$3";

@@ -5,7 +5,7 @@ Contributors: kurt-moser
 Tags: poolparty, thesaurus, glossary, skos, rdf
 Requires at least: 2.9
 Tested up to: 2.9
-Stable tag: 2.0
+Stable tag: 2.1
 
 
 PoolParty plugin makes websites more understandable. Blogs benefit from linking posts with key terms automatically. The plugin uses SKOS vocabularies.
@@ -89,6 +89,9 @@ The tooltip consists of a CSS file and three PNG pictures which can be found in 
 
 == Changelog ==
 
+= 2.1 - 29.07.2011 =
+* Few bugfixes
+
 = 2.0 - 28.07.2011 =
 * Plugin has been re-worked from scratch
 * Definitions are displayed as tooltip via mouseover (can be dectivated)
@@ -104,4 +107,5 @@ The tooltip consists of a CSS file and three PNG pictures which can be found in 
 * Changed: Only concepts with a definition are displayed on the thesaurus pages.
 
 = 1.0 =
+* First plugin version
 
