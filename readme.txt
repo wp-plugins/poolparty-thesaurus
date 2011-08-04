@@ -49,7 +49,7 @@ Install manually:
 
 For users, who have installed version 1.x already:
 
-Version 2.0 was reworked comkpletely, thus take in mind:
+Version 2.0 was reworked completely, thus take in mind:
 
 * Please deactivate the older version and delete */wp-content/plugins/poolparty-thesaurus/* folder
 * Please delete the page *Thesaurus* and the page called *Item*
