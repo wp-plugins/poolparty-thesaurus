@@ -1,7 +1,5 @@
 <?php
 
-include_once(PP_THESAURUS_PLUGIN_DIR . '/arc/ARC2.php');
-
 function getWpPrefix () {
 	global $wpdb;
 	return $wpdb->prefix;
@@ -12,13 +10,17 @@ class PPThesaurusManager {
 
 	protected static $oInstance;
 	public static $sSkosUri = 'http://www.w3.org/2004/02/skos/core#';
+	protected static 	$PLACEHOLDER_CONTENT = 'pp-contentplaceholder';
+	protected static 	$PLACEHOLDER_TERM = 'pp-termplaceholder';
+	protected static 	$PLACEHOLDER_TAG = 'pp-tagplaceholder';
 
 	protected $oStore;
 	protected $bStoreExists;
+	protected $aConceptList;
 	protected $sLanguage;
 	protected $sDefaultLanguage;
-	protected $aConceptList;
 	protected $aAvailableLanguages;
+	protected $aNoParseContent;
 
 
 
@@ -40,22 +42,9 @@ class PPThesaurusManager {
 		$this->sLanguage			= '';
 		$this->sDefaultLanguage		= '';
 		$this->aAvailableLanguages 	= array();
+		$this->aNoParseContent		= array();
 	}
 
-
-	protected function setLanguage () {
-		if (empty($this->sLanguage)) {
-			$aLang = split('#', get_option('PPThesaurusLanguage'));
-			if (function_exists('qtrans_getLanguage')) {
-				$sLang = qtrans_getLanguage();
-				$this->sLanguage = in_array($sLang, $aLang) ? $sLang : '';
-				$this->sDefaultLanguage = get_option('qtranslate_default_language');
-			} else {
-				$this->sLanguage = $aLang[0];
-				$this->sDefaultLanguage = '';
-			}
-		}
-	}
 
 	public static function getInstance () {
 		if(!isset(self::$oInstance)){
@@ -65,6 +54,7 @@ class PPThesaurusManager {
 		return self::$oInstance;
 	}
 
+	
 	public function existsTripleStore () {
 		if (is_null($this->bStoreExists)) {
 			$sQuery = "
@@ -90,15 +80,15 @@ class PPThesaurusManager {
 			return true;
 		}
 
-		// Upgeloadete File ueberpruefen
+		// Downgeloadete File ueberpruefen
 		if ($aUploadFile['error'] >= 1) {
-			throw new Exception ('An error has occured while uploading the file.');
+			throw new Exception (__('An error has occured while downloading the file.', 'pp-thesaurus'));
 		}
 		if ($aUploadFile['type'] != 'application/rdf+xml') {
-			throw new Exception ('The specified file is not an RDF file.');
+			throw new Exception (__('The specified file is not an RDF file.', 'pp-thesaurus'));
 		}
 		if (!is_uploaded_file($aUploadFile['tmp_name'])) {
-			throw new Exception ('An error has occured while uploading the file.');
+			throw new Exception (__('An error has occured while downloading the file.', 'pp-thesaurus'));
 		}
 
 		// Das angegebene SKOS File in den ARC-Triplestore laden
@@ -119,7 +109,7 @@ class PPThesaurusManager {
 
 		// Load RDF data into ARC store
 		if (!($oStore->query('LOAD <file://' . $aUploadFile['tmp_name'] . '>'))) {
-			throw new Exception ('The RDF data could not be stored to the database.');
+			throw new Exception (__('An error has occured while storing the RDF data to the database.', 'pp-thesaurus'));
 		}
 	}
 
@@ -127,7 +117,7 @@ class PPThesaurusManager {
 
 		// Get data from spaql endpoint
 		if (empty($_POST['SparqlEndpoint'])) {
-			throw new Exception ('No SPARQL endpoint has been indicated.');
+			throw new Exception (__('No SPARQL endpoint has been indicated.', 'pp-thesaurus'));
 		}
 
 		$aConfig = array(
@@ -166,7 +156,7 @@ class PPThesaurusManager {
 
 		$aData = $oEPStore->query($sQuery, 'raw');
 		if ($aError = $oEPStore->getErrors()) {
-			throw new Exception ('The transfer of data from the SPARQL endpoint is not possible.');
+			throw new Exception (__('The transfer of data from the SPARQL endpoint is not possible.', 'pp-thesaurus'));
 		}
 
 		// Insert data
@@ -183,13 +173,11 @@ class PPThesaurusManager {
 			}
 			$oARCStore->insert($aData, '');
 			if ($aError = $oARCStore->getErrors()) {
-				throw new Exception ('Storing the data from the SPARQL endpoint in the database is not possible.');
+				throw new Exception (__('An error has occured while storing the data from the SPARQL endpoint to the database.', 'pp-thesaurus'));
 			}
 			self::importFromEndPointLoop($oEPStore, $oARCStore, ++$iCounter);
 		}
 	}
-
-
 
 	public function getLanguages () {
 		if (empty($this->aAvailableLanguages)) {
@@ -204,7 +192,7 @@ class PPThesaurusManager {
 			$aRows = $this->oStore->query($sQuery, 'rows');
 
 			if ($this->oStore->getErrors()) {
-				throw new Exception ("Could not execute query: $sQuery");
+				throw new Exception (sprintf(__('Could not execute query: %s', 'pp-thesaurus'), $sQuery));
 			}
 
 			$aLanguages = array();
@@ -220,35 +208,76 @@ class PPThesaurusManager {
 		return $this->aAvailableLanguages;
 	}
 
+	protected function setLanguage () {
+		if (empty($this->sLanguage)) {
+			$aLang = explode('#', get_option('PPThesaurusLanguage'));
+			if (function_exists('qtrans_getLanguage')) {
+				$sLang = qtrans_getLanguage();
+				$this->sLanguage = in_array($sLang, $aLang) ? $sLang : '';
+				$this->sDefaultLanguage = get_option('qtranslate_default_language');
+			} else {
+				$this->sLanguage = $aLang[0];
+				$this->sDefaultLanguage = '';
+			}
+		}
+	}
 
-	public function parse ($sContent) {
-		$aConcepts = $this->getConcepts();
 
-		// Die vohandenen HTML-Tags suchen und mit einem Placeholder tauschen, damit sie nicht ueberschrieben werden
-		$aSearches = array(
-			"<a [^>]+>(.*?)<\/a>",				// match all html links
-			"<select [^>]+>(.*?)<\/select>",	// match all dropdown lists
-			"<[a-z][a-z0-9]*\s+\S+=[^>]+>"		// match all tags with attributes
-		);
-		preg_match_all('/' . join('|', $aSearches) . '/i', $sContent, $aMatches);
-		$aTagMatches = $aMatches[0];
-		$iTagMatchCount = count($aTagMatches);
-		for ($i=0; $i<$iTagMatchCount; $i++) {
-		    $sContent = str_replace($aTagMatches[$i], "<pp-tagplaceholder>$i</pp-tagplaceholder>", $sContent);
+	public function cutContent ($aAttr, $sContent=null) {
+		if (is_null($sContent)) {
+			return '';
+		}
+		if (!$this->parseAllowed()) {
+			return do_shortcode($sContent);
 		}
 
-		// Um die gefundenen Begriffe im Content einen speziellen Tag legen (nur dem 1. Fund pro Begriff)
+		$iCount = count($this->aNoParseContent);
+		$this->aNoParseContent[] = do_shortcode($sContent);
+		return '<' . self::$PLACEHOLDER_CONTENT . '>' . $iCount . '</' . self::$PLACEHOLDER_CONTENT . '>';
+	}
+
+
+	public function parse ($sContent) {
+		if (!$this->parseAllowed()) {
+			return $sContent;
+		}
+
+		$aConcepts = $this->getConcepts();
+
+		// Entsprechende HTML-Tags suchen (die Probleme machen koennten) und mit einem Placeholder ersetzen
+		$oDom = new simple_html_dom();
+		$oDom->load($sContent);
+		$oTags = $oDom->find('a, label, map, select, sub, sup');
+		$aTagMatches = array();
+		$i = 0;
+		foreach ($oTags as $oTag) {
+			$aTagMatches[] = $oTag->outertext;
+			$oTag->outertext = '<' . self::$PLACEHOLDER_TAG . '>' . $i++ . '</' . self::$PLACEHOLDER_TAG . '>';
+		}
+		$sContent = $oDom->save();
+
+		// Die vohandenen HTML Start-Tags mit Attributen suchen und mit einem Placeholder ersetzen, damit sie nicht ueberschrieben werden
+		$sSearch = "<\w+(\s+\w+(\s*=\s*(?:\".*?\"|'.*?'|[^'\">\s]+))?)+\s*/?>";				// match all start tags with attributes
+		preg_match_all('#' . $sSearch . '#i', $sContent, $aMatches);
+		$aTagMatches = array_merge($aTagMatches, $aMatches[0]);
+		$iTagMatchCount = count($aTagMatches);
+		for (; $i<$iTagMatchCount; $i++) {
+			$sReplace = '<' . self::$PLACEHOLDER_TAG . '>' . $i . '</' . self::$PLACEHOLDER_TAG . '>';
+		    $sContent = str_replace($aTagMatches[$i], $sReplace, $sContent);
+		}
+
+		// Die Begriffe im Content suchen und mit einem Placeholder ersetzen (nur beim 1. Fund pro Begriff)
 		$aTermMatches = array();
 		foreach($aConcepts as $iId => $oConcept){
 			$sLabel = addcslashes($oConcept->label, '/.*+()');
-			if ($sLabel == strtoupper($sLabel)) {
-				$sLabel = '/(\W)(' . $sLabel . ')(\W)/';
-			} else {
-				$sLabel = '/(\W)(' . $sLabel . ')(\W)/i';
+			// Ist der Label in Grossbuchstaben, dann auf casesensitive schalten
+			$sLabel = '/(\W)(' . $sLabel . ')(\W)/';
+			if (strcmp($sLabel, strtoupper($sLabel))) {
+				$sLabel .= 'i';
 			}
 			if (preg_match($sLabel, $sContent, $aMatches)) {
 				$aTermMatches[$iId] = $aMatches[2];
-				$sPlaceholder = "$1<pp-termplaceholder>$iId</pp-termplaceholder>$3";
+				$sPlaceholder = '$1<' . self::$PLACEHOLDER_TERM . '>' . $iId . '</' . self::$PLACEHOLDER_TERM . '>$3';
 				$sContent = preg_replace($sLabel, $sPlaceholder, $sContent, 1);
 			}
 		}
@@ -261,16 +290,67 @@ class PPThesaurusManager {
 			$sContent 		= str_replace($sPlaceholder, $sLink, $sContent);
 		}
 
-		// Alle Placeholder wieder wieder richtig stellen
-		for ($i=0; $i<$iTagMatchCount; $i++) {
-		    $sContent = str_replace("<pp-tagplaceholder>$i</pp-tagplaceholder>", $aTagMatches[$i], $sContent);
+		// Alle Placeholder wieder herstellen
+		$oDom->clear();
+		$oDom->load($sContent);
+		$oTags = $oDom->find(self::$PLACEHOLDER_CONTENT . ', ' . self::$PLACEHOLDER_TERM . ', ' . self::$PLACEHOLDER_TAG);
+		foreach ($oTags as $oTag) {
+			$iNumber = (int)$oTag->innertext;
+			switch ($oTag->tag) {
+				case self::$PLACEHOLDER_CONTENT:
+					$oTag->outertext = $this->aNoParseContent[$iNumber];
+					break;
+				case self::$PLACEHOLDER_TERM:
+					$oConcept 		= $aConcepts[$iNumber];
+					$sDefinition 	= $this->getDefinition($oConcept->uri, $oConcept->definition, true);
+					$sLink 			= pp_thesaurus_get_link($aTermMatches[$iNumber], $oConcept->uri, $oConcept->prefLabel, $sDefinition);
+					$oTag->outertext = $sLink;
+					break;
+				case self::$PLACEHOLDER_TAG:
+					$oTag->outertext = $aTagMatches[$iNumber];
+					break;
+			}
 		}
+		$sContent = $oDom->save();
 
 		return $sContent;
 	}
 
 
-	public function getDefinition ($sConceptUri, $sDefinition, $bTruncate=false) {
+	protected function parseAllowed () {
+		global $post;
+
+		// is automatic linking disabled?
+		if (get_option('PPThesaurusPopup') == 2) {
+			return false;
+		}
+
+		// is the content for a feed or an archive?
+		if (is_feed() || is_archive()) {
+			return false;
+		}
+
+		// is the page a thesaurus page?
+		$iPPThesaurusId = get_option('PPThesaurusId');
+		$aChildren      = get_children(array('numberposts'  => 1,
+											 'post_parent'  => $iPPThesaurusId,
+											 'post_type'    => 'page'));
+		$aIds       = array_keys($aChildren);
+		$aPages[]   = $iPPThesaurusId;
+		$aPages[]   = $aIds[0];
+		if (in_array($post->ID, $aPages)) {
+			return false;
+		}
+		return true;
+	}
+
+
+	public function getDefinition ($sConceptUri, $sDefinition, $bTruncate=false, $bBlock=false) {
+		$iPopup = get_option('PPThesaurusPopup');
+		if ($bTruncate && ($iPopup == 2 || ($bBlock && $iPopup == 0))) {
+			return '';
+		}
+
 		if (empty($sDefinition)) {
 			$sQuery = "
 				PREFIX skos: <" . self::$sSkosUri . ">
@@ -291,14 +371,14 @@ class PPThesaurusManager {
 			$aRow = $this->oStore->query($sQuery, 'row');
 
 			if ($this->oStore->getErrors()) {
-				throw new Exception ("Could not execute query: $sQuery");
+				throw new Exception (sprintf(__('Could not execute query: %s', 'pp-thesaurus'), $sQuery));
 			}
 
 			if (!empty($aRow)) {
 				$sDbPediaUri = $aRow['dbpediaUri'];
 			}
-
 		}
+
 		if (empty($sDefinition) && !empty($sDbPediaUri)) {
 			$sDefinition = $this->getDbPediaDefinition($sDbPediaUri);
 		}
@@ -362,7 +442,7 @@ class PPThesaurusManager {
 
 
 	public function getAbcIndex ($sFilter='ALL') {
-		$aList = $this->getConcepts('sortByLabel');
+		$aList = $this->getConceptList();
 
 		$aIndex['ALL'] 	= 'enabled';
 		for ($i=65; $i<=90; $i++) {
@@ -387,7 +467,7 @@ class PPThesaurusManager {
 
 
 	public function getList ($sFilter='ALL') {
-		$aList = $this->getConcepts('sortByLabel');
+		$aList = $this->getConceptList();
 		if (strtoupper($sFilter) == 'ALL') {
 			return $aList;
 		}
@@ -432,7 +512,7 @@ class PPThesaurusManager {
 		$aRows = $this->oStore->query($sQuery, 'rows');
 
 		if ($this->oStore->getErrors()) {
-			throw new Exception ("Could not execute query: $sQuery");
+			throw new Exception (sprintf(__('Could not execute query: %s', 'pp-thesaurus'), $sQuery));
 		}
 		if (empty($aRows)) {
 			return null;
@@ -450,24 +530,29 @@ class PPThesaurusManager {
 		}
 		foreach ($aRows as $aRow) {
 			$oItem->prefLabel = trim($aRow['prefLabel']);
-			if (isset($aRow['altLabel']) && ($aRow['altLabel lang'] == $this->sLanguage)) {
+			if (isset($aRow['altLabel'])) {
 				$aAltLabels[] = trim($aRow['altLabel']);
 			}
-			if (isset($aRow['hiddenLabel']) && ($aRow['hiddenLabel lang'] == $this->sLanguage)) {
+			if (isset($aRow['hiddenLabel'])) {
 				$aHiddenLabels[] = trim($aRow['hiddenLabel']);
 			}
-			$sDefinition = trim($aRow['definition']);
-			if (!empty($sDefinition)) {
-				switch ($aRow['definition lang']) {
-					case $this->sLanguage:
-						$aDefinitions[$this->sLanguage][] = $sDefinition;
-						break;
-					case $this->sDefaultLanguage:
-						$aDefinitions[$this->sDefaultLanguage][] = $sDefinition;
-						break;
-				}
-			}
-			if (isset($aRow['scopeNote']) && ($aRow['scopeNote lang'] == $this->sLanguage)) {
+			if (isset($aRow['definition'])) {
+                $sDefinition = trim($aRow['definition']);
+                if (!empty($sDefinition)) {
+                    switch ($aRow['definition lang']) {
+                        case $this->sLanguage:
+                            $aDefinitions[$this->sLanguage][] = $sDefinition;
+                            break;
+                        case $this->sDefaultLanguage:
+                            $aDefinitions[$this->sDefaultLanguage][] = $sDefinition;
+                            break;
+                        default:
+                            $aDefinitions['other'][] = $sDefinition;
+                            break;
+                    }
+                }
+            }
+			if (isset($aRow['scopeNote'])) {
 				$oItem->scopeNote = $aRow['scopeNote'];
 			}
 			if ($bWithRelations) {
@@ -488,7 +573,10 @@ class PPThesaurusManager {
 			$oItem->definition = join('<br />', array_unique($aDefinitions[$this->sLanguage]));
 		} elseif (!empty($aDefinitions[$this->sDefaultLanguage])) {
 			$oItem->definition = $this->getDefinitionInfo() . join('<br />', array_unique($aDefinitions[$this->sDefaultLanguage]));
+		} elseif (!empty($aDefinitions['other'])) {
+			$oConcept->definition = join('<br />', array_unique($aDefinitions['other']));
 		}
+		$oItem->searchLink = get_bloginfo('url', 'display') . '/?s=' . urlencode($oItem->prefLabel);
 
 		return $oItem;
 	}
@@ -502,11 +590,11 @@ class PPThesaurusManager {
 			WHERE {
 				<$sUri> a skos:Concept .
 				<$sUri> skos:$sRelType ?relation .
-				?relation skos:prefLabel ?prefLabel .
+				?relation skos:prefLabel ?prefLabel FILTER (lang(?prefLabel) = '" . $this->sLanguage . "') .
 				OPTIONAL { ?relation skos:definition ?definition . }
 				OPTIONAL { ?relation skos:notation ?notation. }
 			  
-				FILTER (lang(?prefLabel) = '" . $this->sLanguage . "' && !bound(?notation)) .
+				FILTER (!bound(?notation)) .
 			}
 		";
 
@@ -516,7 +604,7 @@ class PPThesaurusManager {
 		}
 
 		if ($this->oStore->getErrors()) {
-			throw new Exception ("Could not execute query: $sQuery");
+			throw new Exception (sprintf(__('Could not execute query: %s', 'pp-thesaurus'), $sQuery));
 		}
 
 		$aResult 		= array();
@@ -531,6 +619,8 @@ class PPThesaurusManager {
 						$oItem->definition = join('<br />', array_unique($aDefinitions[$this->sLanguage]));
 					} elseif (!empty($aDefinitions[$this->sDefaultLanguage])) {
 						$oItem->definition = $this->getDefinitionInfo() . join('<br />', array_unique($aDefinitions[$this->sDefaultLanguage]));
+					} elseif (!empty($aDefinitions['other'])) {
+						$oItem->definition = join('<br />', array_unique($aDefinitions['other']));
 					}
 					$aResult[] 			= $oItem;
 					$oItem				= new PPThesaurusItem();
@@ -540,15 +630,20 @@ class PPThesaurusManager {
 				$oItem->uri 		= $aRow['relation'];
 				$oItem->prefLabel 	= trim($aRow['prefLabel']);
 			}
-			$sDefinition = trim($aRow['definition']);
-			if (!empty($sDefinition)) {
-				switch ($aRow['definition lang']) {
-					case $this->sLanguage:
-						$aDefinitions[$this->sLanguage][] = $sDefinition;
-						break;
-					case $this->sDefaultLanguage:
-						$aDefinitions[$this->sDefaultLanguage][] = $sDefinition;
-						break;
+			if (isset($aRow['definition'])) {
+				$sDefinition = trim($aRow['definition']);
+				if (!empty($sDefinition)) {
+					switch ($aRow['definition lang']) {
+						case $this->sLanguage:
+							$aDefinitions[$this->sLanguage][] = $sDefinition;
+							break;
+						case $this->sDefaultLanguage:
+							$aDefinitions[$this->sDefaultLanguage][] = $sDefinition;
+							break;
+						default:
+							$aDefinitions['other'][] = $sDefinition;
+							break;
+					}
 				}
 			}
 			$bFirst = false;
@@ -557,6 +652,8 @@ class PPThesaurusManager {
 			$oItem->definition = join('<br />', array_unique($aDefinitions[$this->sLanguage]));
 		} elseif (!empty($aDefinitions[$this->sDefaultLanguage])) {
 			$oItem->definition = $this->getDefinitionInfo() . join('<br />', array_unique($aDefinitions[$this->sDefaultLanguage]));
+		} elseif (!empty($aDefinitions['other'])) {
+			$oItem->definition = join('<br />', array_unique($aDefinitions['other']));
 		}
 		$aResult[] = $oItem;
 
@@ -592,7 +689,7 @@ class PPThesaurusManager {
 			$aRows = $this->oStore->query($sQuery, 'rows');
 
 			if ($this->oStore->getErrors()) {
-				throw new Exception ("Could not execute query: $sQuery");
+				throw new Exception (sprintf(__('Could not execute query: %s', 'pp-thesaurus'), $sQuery));
 			}
 			if (count($aRows) <= 0) {
 				return $this->aConceptList;
@@ -612,6 +709,8 @@ class PPThesaurusManager {
 							$oConcept->definition = join('<br />', array_unique($aDefinitions[$this->sLanguage]));
 						} elseif (!empty($aDefinitions[$this->sDefaultLanguage])) {
 							$oConcept->definition = $this->getDefinitionInfo() . join('<br />', array_unique($aDefinitions[$this->sDefaultLanguage]));
+						} elseif (!empty($aDefinitions['other'])) {
+							$oConcept->definition = join('<br />', array_unique($aDefinitions['other']));
 						}
 						if ($oConcept->rel == self::$sSkosUri . 'prefLabel') {
 							$aPrefLabels[$oConcept->uri] = $oConcept->label;
@@ -640,6 +739,93 @@ class PPThesaurusManager {
 				}
 				$sDefinition = trim($aRow['definition']);
 				if (!empty($sDefinition)) {
+					switch ($aRow['definition lang']) {
+						case $this->sLanguage:
+							$aDefinitions[$this->sLanguage][] = $sDefinition;
+							break;
+						case $this->sDefaultLanguage:
+							$aDefinitions[$this->sDefaultLanguage][] = $sDefinition;
+							break;
+						default:
+							$aDefinitions['other'][] = $sDefinition;
+							break;
+					}
+				}
+				$bFirst = false;
+			}
+			if (!empty($aDefinitions[$this->sLanguage])) {
+				$oConcept->definition = join('<br />', array_unique($aDefinitions[$this->sLanguage]));
+			} elseif (!empty($aDefinitions[$this->sDefaultLanguage])) {
+				$oConcept->definition = $this->getDefinitionInfo() . join('<br />', array_unique($aDefinitions[$this->sDefaultLanguage]));
+			} elseif (!empty($aDefinitions['other'])) {
+				$oItem->definition = join('<br />', array_unique($aDefinitions['other']));
+			}
+			$this->aConceptList[$i] = $oConcept;
+
+			unset($aPrefLabels);
+			unset($aOtherLabels);
+		}
+
+		usort($this->aConceptList, array($this, 'sortByCount'));
+
+		return $this->aConceptList;
+	}
+
+
+	protected function getConceptList () {
+		$this->setLanguage();
+		if (empty($this->sLanguage)) return $this->aConceptList;
+
+		if (empty($this->aConceptList)) {
+			$sQuery = "
+				PREFIX skos: <" . self::$sSkosUri . ">
+
+				SELECT DISTINCT ?concept ?label ?definition
+				WHERE {
+					?concept a skos:Concept .
+					?concept skos:prefLabel ?label FILTER (lang(?label) = '" . $this->sLanguage . "').
+					OPTIONAL { ?concept skos:definition ?definition . }
+					OPTIONAL { ?concept skos:notation ?notation. }
+
+					FILTER (!bound(?notation)).
+				}
+			";
+
+			$aRows = $this->oStore->query($sQuery, 'rows');
+
+			if ($this->oStore->getErrors()) {
+				throw new Exception (sprintf(__('Could not execute query: %s', 'pp-thesaurus'), $sQuery));
+			}
+			if (count($aRows) <= 0) {
+				return $this->aConceptList;
+			}
+
+			$sLastConcept   = '';
+			$oConcept       = new PPThesaurusItem();
+			$aDefinitions   = array();
+			$bFirst         = true;
+			$i              = 0;
+			foreach ($aRows as $aRow) {
+				if ($aRow['label'] != $sLastConcept) {
+					if (!$bFirst) {
+						if (!empty($aDefinitions[$this->sLanguage])) {
+							$oConcept->definition = join('<br />', array_unique($aDefinitions[$this->sLanguage]));
+						} elseif (!empty($aDefinitions[$this->sDefaultLanguage])) {
+							$oConcept->definition = $this->getDefinitionInfo() . join('<br />', array_unique($aDefinitions[$this->sDefaultLanguage]));
+						} elseif (!empty($aDefinitions['other'])) {
+							$oConcept->definition = join('<br />', array_unique($aDefinitions['other']));
+						}
+						$this->aConceptList[$i++]   = $oConcept;
+						$oConcept                   = new PPThesaurusItem();
+						$aDefinitions               = array();
+					}
+					$sLastConcept           = $aRow['label'];
+					$sLabel                 = preg_replace('/ {2,}/', ' ', $aRow['label']);
+					$oConcept->uri          = $aRow['concept'];
+					$oConcept->prefLabel    = trim($sLabel);
+				}
+				if (isset($aRow['definition'])) {
+					$sDefinition = trim($aRow['definition']);
 					if (!empty($sDefinition)) {
 						switch ($aRow['definition lang']) {
 							case $this->sLanguage:
@@ -647,6 +833,9 @@ class PPThesaurusManager {
 								break;
 							case $this->sDefaultLanguage:
 								$aDefinitions[$this->sDefaultLanguage][] = $sDefinition;
+								break;
+							default:
+								$aDefinitions['other'][] = $sDefinition;
 								break;
 						}
 					}
@@ -657,16 +846,67 @@ class PPThesaurusManager {
 				$oConcept->definition = join('<br />', array_unique($aDefinitions[$this->sLanguage]));
 			} elseif (!empty($aDefinitions[$this->sDefaultLanguage])) {
 				$oConcept->definition = $this->getDefinitionInfo() . join('<br />', array_unique($aDefinitions[$this->sDefaultLanguage]));
+			} elseif (!empty($aDefinitions['other'])) {
+				$oConcept->definition = join('<br />', array_unique($aDefinitions['other']));
 			}
 			$this->aConceptList[$i] = $oConcept;
-
-			unset($aPrefLabels);
-			unset($aOtherLabels);
 		}
 
-		usort($this->aConceptList, array($this, $sSort));
+		usort($this->aConceptList, array($this, 'sortByLabel'));
 
 		return $this->aConceptList;
+	}
+
+
+	public function searchConcepts ($sString, $iLimit, $sUrl) {
+		$sString = trim($sString);
+
+		if (empty($sString)) {
+			return array();
+		}
+
+		$this->setLanguage();
+		if (empty($this->sLanguage)) {
+			return array();
+		}
+
+		$sQuery = "
+			PREFIX skos:<http://www.w3.org/2004/02/skos/core#>
+
+			SELECT DISTINCT ?concept ?label 
+			WHERE {
+				?concept a skos:Concept.
+				{ 
+					?concept skos:prefLabel ?label FILTER(regex(str(?label),'$sString','i') && lang(?label) = '" . $this->sLanguage . "').
+				} UNION {
+					?concept skos:altLabel ?label FILTER(regex(str(?label),'$sString','i') && lang(?label) = '" . $this->sLanguage . "').
+				}
+				OPTIONAL { ?concept skos:notation ?notation. }
+				
+				FILTER(!bound(?notation)).
+			}
+			ORDER BY ASC(?label)
+			LIMIT $iLimit";
+
+		$aRows = $this->oStore->query($sQuery, 'rows');
+		if ($this->oStore->getErrors() || count($aRows) <= 0) {
+			return array();
+		}
+
+		$aListStart 	= array();
+		$aListMiddle 	= array();
+		foreach ($aRows as $aData) {
+			$sData = $aData['label'] . '|' . $sUrl . '?uri=' . $aData['concept'];
+			if (stripos($aData['label'], $sString) > 0) {
+				$aListMiddle[] = $sData;
+			} else {
+				$aListStart[] = $sData;
+			}
+		}
+
+		$aList = array_merge($aListStart, $aListMiddle);
+
+		return $aList;
 	}
 
 

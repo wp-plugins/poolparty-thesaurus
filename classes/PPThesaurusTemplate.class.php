@@ -13,6 +13,7 @@ class PPThesaurusTemplate {
 	public function showABCIndex ($aAtts) {
 		$iPPThesaurusId = get_option('PPThesaurusId');
 		$oPage 			= get_page($iPPThesaurusId);
+		$i 				= 1;
 
 		if (isset($_GET['filter'])) {
 			$iChar = $_GET['filter'];
@@ -27,14 +28,13 @@ class PPThesaurusTemplate {
 
 			$iChar = ord(strtoupper($this->oItem->prefLabel));
 		}
-		$i 			= 1;
 		$aIndex 	= $this->oPPTM->getAbcIndex($iChar);
 		$iCount 	= count($aIndex);
 		$sContent 	= '<ul class="PPThesaurusAbcIndex">';
 		foreach($aIndex as $sChar => $sKind) {
 			$sClass = ($i == 1) ? 'first' : ($i == $iCount ? 'last' : '');
 			$sLetter = ($sChar == 'ALL') ? 'ALL' : chr($sChar);
-			$sLink = '<a href="' . get_bloginfo('url', 'display') . '/' . $oPage->post_name . '/?filter=' . $sChar . '">' . $sLetter . '</a>';
+			$sLink = '<a href="' . get_bloginfo('url', 'display') . '/' . $oPage->post_name . '?filter=' . $sChar . '">' . $sLetter . '</a>';
 			switch ($sKind) {
 				case 'disabled':
 					if (!empty($sClass)) {
@@ -70,12 +70,10 @@ class PPThesaurusTemplate {
 			$sContent .= '<ul class="PPThesaurusList">';
 			$i = 1;
 			foreach($aList as $oConcept) {
-				if ($oConcept->rel != PPThesaurusManager::$sSkosUri . 'hiddenLabel') {
-					$sClass = ($i == 1) ? ' class="first"' : ($i == $iCount ? ' class="last"' : '');
-					$sDefinition = $this->oPPTM->getDefinition($oConcept->uri, $oConcept->definition, true);
-					$sContent .= '<li' . $sClass . '>' . pp_thesaurus_get_link($oConcept->label, $oConcept->uri, $oConcept->prefLabel, $sDefinition, true) . '</li>';
-					$i++;
-				}
+				$sClass = ($i == 1) ? ' class="first"' : ($i == $iCount ? ' class="last"' : '');
+				$sDefinition = $this->oPPTM->getDefinition($oConcept->uri, $oConcept->definition, true, true);
+				$sContent .= '<li' . $sClass . '>' . pp_thesaurus_get_link($oConcept->prefLabel, $oConcept->uri, $oConcept->prefLabel, $sDefinition, true) . '</li>';
+				$i++;
 			}
 			$sContent .= '</ul>';
 		}
@@ -121,12 +119,23 @@ class PPThesaurusTemplate {
 			$sContent .= '<p>' . sprintf(__('Linked data frontend for %s', 'pp-thesaurus'), $sLink) . '.</p>';
 		}
 
-		$sSearchLink = get_bloginfo('url', 'display') . '/?s=' . urlencode($this->oItem->prefLabel);
-		$sContent .= '<p><strong>' . __('Search for', 'pp-thesaurus') . '</strong> <a href="' . $sSearchLink . '" title="' . __('Search for', 'pp-thesaurus') . ' ' . $this->oItem->prefLabel . '">' . $this->oItem->prefLabel . '</a></p>';
+		if ($this->oItem->searchLink) {
+			$sContent .= '<p><strong>' . __('Search for', 'pp-thesaurus') . '</strong> <a href="' . $this->oItem->searchLink . '" title="' . __('Search for', 'pp-thesaurus') . ' ' . $this->oItem->prefLabel . '">' . $this->oItem->prefLabel . '</a></p>';
+		}
 
 		$sContent .= '</div>';
 
 		return $sContent;
+	}
+
+
+	public function setWPTitle ($sTitle, $sSep, $sSepLocation) {
+		$sNewTitle = $this->setTitle($sTitle);
+		if ($sNewTitle == $sTitle) {
+			return $sTitle;
+		}
+
+		return sprintf(__('Definition of %s', 'pp-thesaurus'), $sNewTitle);
 	}
 
 	public function setTitle ($sTitle) {
@@ -136,6 +145,10 @@ class PPThesaurusTemplate {
 										 'post_type'    => 'page'));
 		$oChild = array_shift($aChildren);
 		$sTitle = trim($sTitle);
+
+		if (!is_page($oChild->ID)) {
+			return $sTitle;
+		}
 
 		if (function_exists('qtrans_split')) {
 			$aTitles = qtrans_split($oChild->post_title);
@@ -152,7 +165,7 @@ class PPThesaurusTemplate {
 				$this->oItem = $this->oPPTM->getItem($_GET['uri']);
 			}
 		} catch (Exception $e) {
-			return 'Error';
+			return $sTitle;
 		}
 
 		return $this->oItem->prefLabel;

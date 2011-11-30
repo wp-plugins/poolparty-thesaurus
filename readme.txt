@@ -1,11 +1,11 @@
 === PoolParty Thesaurus ===
-Author URI: http://www.punkt.at/8/7/kurt-moser.htm
-Plugin URI: http://poolparty.punkt.at
+Author URI: http://www.semantic-web.at/users/kurt-moser
+Plugin URI: http://poolparty.biz
 Contributors: kurt-moser
 Tags: poolparty, thesaurus, glossary, skos, rdf
 Requires at least: 2.9
 Tested up to: 2.9
-Stable tag: 2.1
+Stable tag: trunk
 
 
 PoolParty plugin makes websites more understandable. Blogs benefit from linking posts with key terms automatically. The plugin uses SKOS vocabularies.
@@ -20,6 +20,12 @@ On two extra pages (which are generated automatically) the thesaurus can be disp
 
 Each post is analysed automatically to find words and phrases matching labels of a concept (prefLabel, altLabel or hiddenLabel) in the thesaurus. The first hit will be highlighted automatically. A mousover tooltip shows the short description of the term/phrase and the link points to the more detailed description on the glossary page.
 
+= What's new? =
+* Updating the plugin via the wordpress admin interface has been simplified. The plugin now gets the ARC2-tripelstore and installs it automatically without need to intervene  manually.
+* There is a new sidebar-widget which incorporates a search field including autocomplete. This autocomplete service suggests terms from the glossary. Once such a term is chosen, one is automatically connected to the webpage describing the term. The widget can be pulled into any sidebar (depending on the theme) from the sub-section of *appearance/widgets*.
+* There is a new shortcode with which specific parts of the content can be excluded from automatically being linked. The shortcode is called ppt-noparse, and it is opened with *[ppt-noparse]* and closed with *[/ppt-noparse]*. Automatic linking is disabled for any text between the code.
+* Automatic finding and linking of concepts in running content can be totally disabled under settings. The glossary area is still present and can be reached via the glossary link and the sidebar widget.
+
 Thanks to Benjamin Nowack: The thesaurus is imported into the system and is queried via ARC2 (https://github.com/semsol/arc2).
 Thanks to rduffy (http://wordpress.org/extend/plugins/profile/rduffy). His 'Glossary' Plugin (http://wordpress.org/extend/plugins/automatic-glossary) inspired me, and I was able to develop this plugin on top of his ideas.
 
@@ -32,10 +38,8 @@ Install using WordPress:
 
 1. Log in and go to *Plugins* and click on *Add New*.
 2. Search for *poolparty thesaurus* and hit the *Install Now* link in the results. WordPress will install it.
-3. Download ARC2 from https://github.com/semsol/arc2 and unzip it.
-4. Open the unziped folder and upload the entire content into the */wp-content/plugins/poolparty-thesaurus/arc/* directory.
-5. From the Plugin Management page in Wordpress, activate the *PoolParty Thesaurus* plugin.
-6. Go to *Settings* -> *PoolParty Thesaurus* in Wordpress, specify a RDF/XML file or SPARQL endpoint and click on *Import/Update Thesaurus*. Uploading the thesaurus can take a few minutes (4-5 minutes). Please remain patient and do not interrupt the procedure.
+3. From the Plugin Management page in Wordpress, activate the *PoolParty Thesaurus* plugin.
+4. Go to *Settings* -> *PoolParty Thesaurus* in Wordpress, specify a RDF/XML file or SPARQL endpoint and click on *Import/Update Thesaurus*. Uploading the thesaurus can take a few minutes. Please remain patient and do not interrupt the procedure.
 
 Install manually:
 
@@ -44,12 +48,12 @@ Install manually:
 3. Download ARC2 from https://github.com/semsol/arc2 and unzip it.
 4. Open the unziped folder and upload the entire contents into the */wp-content/plugins/poolparty-thesaurus/arc/* directory.
 5. From the Plugin Management page in Wordpress, activate the *PoolParty Thesaurus* plugin.
-6. Go to *Settings* -> *PoolParty Thesaurus* in Wordpress, specify a RDF/XML file or SPARQL endpoint and click on *Import/Update Thesaurus*. Uploading the thesaurus can take a few minutes (4-5 minutes). Please remain patient and don*t interrupt the procedure.
+6. Go to *Settings* -> *PoolParty Thesaurus* in Wordpress, specify a RDF/XML file or SPARQL endpoint and click on *Import/Update Thesaurus*. Uploading the thesaurus can take a few minutes. Please remain patient and don*t interrupt the procedure.
 
 
 For users, who have installed version 1.x already:
 
-Version 2.0 was reworked comkpletely, thus take in mind:
+Version 2.0 was reworked completely, thus take in mind:
 
 * Please deactivate the older version and delete */wp-content/plugins/poolparty-thesaurus/* folder
 * Please delete the page *Thesaurus* and the page called *Item*
@@ -66,10 +70,13 @@ No. It can be called whatever you like. You can enter a content if you like, but
 No. It can be called whatever you like. You can enter a content if you like, but be careful with the shortcuts.
 
 = How do I add a thesaurus item?  =
-You will need a SKOS thesaurus management tool like PoolParty (http://poolparty.punkt.at/) to add/modify terms. The glossary is generated automatically from the imported thesaurus or (public) SPARQL endpoint.
+You will need a SKOS thesaurus management tool like PoolParty (http://poolparty.biz) to add/modify terms. The glossary is generated automatically from the imported thesaurus or (public) SPARQL endpoint.
 
 = Where can I find SKOS thesauri on the web? =
 A good source for this is CKAN, see: http://ckan.net/package?tags=format-skos
+
+= How con I exclude certain text sections from parsing? =
+Enclose such text sections with preceding [ppt-noparse] and a final [/ppt-noparse]
 
 = How can I update the glossary? =
 Simply load the updated thesaurus again (admin area: *Settings* -> *PoolParty Thesaurus*). The old thesaurus will be overwritten. New or updated concepts will be recognized immediately by the link generator.
@@ -88,6 +95,13 @@ The tooltip consists of a CSS file and three PNG pictures which can be found in 
 
 
 == Changelog ==
+= 2.2 - 29.11.2011 =
+* Updating the plugin via the wordpress admin interface has been simplified. The plugin now gets the ARC2-tripelstore and installs it automatically without need to intervene  manually.
+* There is a new sidebar-widget which incorporates a search field including autocomplete. This autocomplete service suggests terms from the glossary. Once such a term is chosen, one is automatically connected to the webpage describing the term. The widget can be pulled into any sidebar (depending on the theme) from the sub-section of *appearance/widgets*.
+* There is a new shortcode with which specific parts of the content can be excluded from automatically being linked. The shortcode is called ppt-noparse, and it is opened with *[ppt-noparse]* and closed with *[/ppt-noparse]*. Automatic linking is disabled for any text between the code.
+* Automatic finding and linking of concepts in running content can be totally disabled under settings. The glossary area is still present and can be reached via the glossary link and the sidebar widget.
+* The procedure for the automatic linking has been stabilized and improved
+* Bugfixes
 
 = 2.1 - 29.07.2011 =
 * Few bugfixes

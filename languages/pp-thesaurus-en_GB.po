@@ -19,39 +19,39 @@ msgstr ""
 "X-Poedit-SearchPath-0: .\n"
 "X-Textdomain-Support: yes"
 
-#: classes/PPThesaurusTemplate.class.php:25
-#: classes/PPThesaurusTemplate.class.php:93
+#: classes/PPThesaurusTemplate.class.php:26
+#: classes/PPThesaurusTemplate.class.php:91
 #@ pp-thesaurus
 msgid "An error has occurred while reading concept data."
 msgstr "An error has occurred while reading concept data."
 
-#: classes/PPThesaurusTemplate.class.php:98
+#: classes/PPThesaurusTemplate.class.php:96
 #@ pp-thesaurus
 msgid "Synonyms"
 msgstr "Synonyms"
 
-#: classes/PPThesaurusTemplate.class.php:107
+#: classes/PPThesaurusTemplate.class.php:105
 #@ pp-thesaurus
 msgid "Related terms"
 msgstr "Related terms"
 
-#: classes/PPThesaurusTemplate.class.php:111
+#: classes/PPThesaurusTemplate.class.php:109
 #@ pp-thesaurus
 msgid "Broader terms"
 msgstr "Broader terms"
 
-#: classes/PPThesaurusTemplate.class.php:115
+#: classes/PPThesaurusTemplate.class.php:113
 #@ pp-thesaurus
 msgid "Narrower terms"
 msgstr "Narrower terms"
 
-#: classes/PPThesaurusTemplate.class.php:121
+#: classes/PPThesaurusTemplate.class.php:119
 #, php-format
 #@ pp-thesaurus
 msgid "Linked data frontend for %s"
 msgstr "Linked data frontend for %s"
 
-#: classes/PPThesaurusTemplate.class.php:125
+#: classes/PPThesaurusTemplate.class.php:123
 #@ pp-thesaurus
 msgid "Search for"
 msgstr "Search for"
@@ -60,12 +60,6 @@ msgstr "Search for"
 #: pp-thesaurus.php:0
 #@ pp-thesaurus
 msgid "PoolParty Thesaurus"
-msgstr ""
-
-#. translators: plugin header field 'PluginURI'
-#: pp-thesaurus.php:0
-#@ pp-thesaurus
-msgid "http://poolparty.punkt.at"
 msgstr ""
 
 #. translators: plugin header field 'Description'
@@ -80,118 +74,223 @@ msgstr ""
 msgid "Kurt Moser"
 msgstr ""
 
-#. translators: plugin header field 'AuthorURI'
-#: pp-thesaurus.php:0
-#@ pp-thesaurus
-msgid "http://www.punkt.at/8/7/kurt-moser.htm"
-msgstr ""
-
-#. translators: plugin header field 'Version'
-#: pp-thesaurus.php:0
-#@ pp-thesaurus
-msgid "2.0"
-msgstr ""
-
-#: pp-thesaurus.php:126
+#: pp-thesaurus.php:186
+#: pp-thesaurus.php:211
 #@ pp-thesaurus
 msgid "PoolParty Thesaurus Settings"
 msgstr "PoolParty Thesaurus Settings"
 
-#: pp-thesaurus.php:137
+#: pp-thesaurus.php:223
 #@ pp-thesaurus
 msgid "Common settings"
 msgstr "Common settings"
 
-#: pp-thesaurus.php:141
-#@ pp-thesaurus
-msgid "Set the mouseover effect"
-msgstr "Set the mouseover effect"
-
-#: pp-thesaurus.php:144
-#@ pp-thesaurus
-msgid "show the description in a tooltip"
-msgstr "show the description in a tooltip"
-
-#: pp-thesaurus.php:146
-#@ pp-thesaurus
-msgid "show only the title"
-msgstr "show only the title"
-
-#: pp-thesaurus.php:152
+#: pp-thesaurus.php:242
 #@ pp-thesaurus
 msgid "Set the thesaurus languages after the import"
 msgstr "Set the thesaurus languages after the import"
 
-#: pp-thesaurus.php:154
-#@ pp-thesaurus
-msgid "Set the thesaurus languages"
-msgstr "Set the thesaurus languages"
-
-#: pp-thesaurus.php:162
+#: pp-thesaurus.php:250
 #@ pp-thesaurus
 msgid "DBPedia SPARQL endpoint"
 msgstr "DBPedia SPARQL endpoint"
 
-#: pp-thesaurus.php:169
+#: pp-thesaurus.php:257
 #@ pp-thesaurus
 msgid "Save settings"
 msgstr "Save settings"
 
-#: pp-thesaurus.php:177
+#: pp-thesaurus.php:264
 #@ pp-thesaurus
 msgid "Data settings"
 msgstr "Data settings"
 
-#: pp-thesaurus.php:181
+#: pp-thesaurus.php:268
 #@ pp-thesaurus
 msgid "Import/Update SKOS Thesaurus from"
 msgstr "Import/Update SKOS Thesaurus from"
 
-#: pp-thesaurus.php:184
+#: pp-thesaurus.php:271
 #@ pp-thesaurus
 msgid "SPARQL endpoint"
 msgstr "SPARQL endpoint"
 
-#: pp-thesaurus.php:190
+#: pp-thesaurus.php:277
 #@ pp-thesaurus
 msgid "RDF/XML file"
 msgstr "RDF/XML file"
 
-#: pp-thesaurus.php:206
+#: pp-thesaurus.php:293
 #@ pp-thesaurus
 msgid "Import/Update Thesaurus"
 msgstr "Import/Update Thesaurus"
 
-#: classes/PPThesaurusManager.class.php:670
+#: classes/PPThesaurusManager.class.php:916
 #, php-format
 #@ pp-thesaurus
 msgid "Definition not available in %s"
 msgstr "Definition not available in '%s'"
 
-#: classes/PPThesaurusManager.class.php:671
+#: classes/PPThesaurusManager.class.php:917
 #, php-format
 #@ pp-thesaurus
 msgid "Definition in %s"
 msgstr "Definition in '%s'"
 
-#: pp-thesaurus.php:131
+#: pp-thesaurus.php:216
 #@ pp-thesaurus
 msgid "Settings saved"
 msgstr "Settings saved"
 
-#: pp-thesaurus.php:133
-#@ pp-thesaurus
-msgid "Please select the languages for the thesaurus"
-msgstr "Please select the languages for the thesaurus"
-
-#: pp-thesaurus.php:197
+#: pp-thesaurus.php:284
 #, php-format
 #@ pp-thesaurus
 msgid "Last data update on %1$s from %2$s"
 msgstr "Last data update on %1$s from %2$s"
 
-#: pp-thesaurus.php:199
+#: pp-thesaurus.php:286
 #@ pp-thesaurus
 msgid "Please import a SKOS Thesaurus"
 msgstr "Please import a SKOS Thesaurus"
+
+#: classes/PPThesaurusManager.class.php:85
+#: classes/PPThesaurusManager.class.php:91
+#@ pp-thesaurus
+msgid "An error has occured while downloading the file."
+msgstr "An error has occured while downloading the file."
+
+#: classes/PPThesaurusManager.class.php:88
+#@ pp-thesaurus
+msgid "The specified file is not an RDF file."
+msgstr "The specified file is not an RDF file."
+
+#: classes/PPThesaurusManager.class.php:112
+#@ pp-thesaurus
+msgid "An error has occured while storing the RDF data to the database."
+msgstr "An error has occured while storing the RDF data to the database."
+
+#: classes/PPThesaurusManager.class.php:120
+#@ pp-thesaurus
+msgid "No SPARQL endpoint has been indicated."
+msgstr "No SPARQL endpoint has been indicated."
+
+#: classes/PPThesaurusManager.class.php:159
+#@ pp-thesaurus
+msgid "The transfer of data from the SPARQL endpoint is not possible."
+msgstr "The transfer of data from the SPARQL endpoint is not possible."
+
+#: classes/PPThesaurusManager.class.php:176
+#@ pp-thesaurus
+msgid "An error has occured while storing the data from the SPARQL endpoint to the database."
+msgstr "An error has occured while storing the data from the SPARQL endpoint to the database."
+
+#: classes/PPThesaurusManager.class.php:195
+#: classes/PPThesaurusManager.class.php:374
+#: classes/PPThesaurusManager.class.php:515
+#: classes/PPThesaurusManager.class.php:607
+#: classes/PPThesaurusManager.class.php:692
+#: classes/PPThesaurusManager.class.php:797
+#, php-format
+#@ pp-thesaurus
+msgid "Could not execute query: %s"
+msgstr "Could not execute query: %s"
+
+#: classes/PPThesaurusTemplate.class.php:138
+#, php-format
+#@ pp-thesaurus
+msgid "Definition of %s"
+msgstr "Definition of %s"
+
+#. translators: plugin header field 'PluginURI'
+#: pp-thesaurus.php:0
+#@ pp-thesaurus
+msgid "http://poolparty.biz"
+msgstr ""
+
+#. translators: plugin header field 'AuthorURI'
+#: pp-thesaurus.php:0
+#@ pp-thesaurus
+msgid "http://www.semantic-web.at/users/kurt-moser"
+msgstr ""
+
+#. translators: plugin header field 'Version'
+#: pp-thesaurus.php:0
+#@ pp-thesaurus
+msgid "2.2"
+msgstr ""
+
+#: pp-thesaurus.php:141
+#@ pp-thesaurus
+msgid "Glossary Search"
+msgstr "Glossary Search"
+
+#: pp-thesaurus.php:188
+#@ pp-thesaurus
+msgid "Please install ARC2 first before you can change the settings!"
+msgstr "Please install ARC2 first before you can change the settings!"
+
+#: pp-thesaurus.php:218
+#@ pp-thesaurus
+msgid "Please select the thesaurus languages."
+msgstr "Please select the thesaurus languages"
+
+#: pp-thesaurus.php:227
+#@ pp-thesaurus
+msgid "Options for automatic linking of recognized terms"
+msgstr "Options for automatic linking of recognized terms"
+
+#: pp-thesaurus.php:230
+#@ pp-thesaurus
+msgid "link and show description in tooltip"
+msgstr "link and show description in tooltip"
+
+#: pp-thesaurus.php:232
+#@ pp-thesaurus
+msgid "link without tooltip"
+msgstr "link without tooltip"
+
+#: pp-thesaurus.php:234
+#@ pp-thesaurus
+msgid "automatic linking disabled"
+msgstr "automatic linking disabled"
+
+#: pp-thesaurus.php:240
+#@ pp-thesaurus
+msgid "Thesaurus languages"
+msgstr "Thesaurus languages"
+
+#: pp-thesaurus.php:353
+#@ pp-thesaurus
+msgid "not available"
+msgstr "not available"
+
+#: pp-thesaurus.php:374
+#@ pp-thesaurus
+msgid "Please indicate the SPARQL endpoint or the SKOS file to be imported."
+msgstr "Please indicate the SPARQL endpoint or the SKOS file to be imported."
+
+#: pp-thesaurus.php:564
+#@ pp-thesaurus
+msgid "Title"
+msgstr "Title"
+
+#: pp-thesaurus.php:568
+#@ pp-thesaurus
+msgid "Width of the search field"
+msgstr "Width of the search field"
+
+#: pp-thesaurus.php:569
+#@ pp-thesaurus
+msgid "or"
+msgstr "or"
+
+#: pp-thesaurus.php:142
+#@ pp-thesaurus
+msgid "Search the glossary"
+msgstr "Search the glossary"
+
+#: pp-thesaurus.php:190
+#@ pp-thesaurus
+msgid "Download ARC2 from https://github.com/semsol/arc2 and unzip it. Open the unziped folder and upload the entire contents into the '/wp-content/plugins/poolparty-thesaurus/arc/' directory."
+msgstr "Download ARC2 from https://github.com/semsol/arc2 and unzip it. Open the unziped folder and upload the entire contents into the '/wp-content/plugins/poolparty-thesaurus/arc/' directory."
 
