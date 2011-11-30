@@ -282,14 +282,6 @@ class PPThesaurusManager {
 			}
 		}
 
-		foreach ($aTermMatches as $iId => $sMatch) {
-			$oConcept 		= $aConcepts[$iId];
-			$sDefinition 	= $this->getDefinition($oConcept->uri, $oConcept->definition, true);
-			$sPlaceholder 	= "<pp-termplaceholder>$iId</pp-termplaceholder>";
-			$sLink 			= pp_thesaurus_get_link($sMatch, $oConcept->uri, $oConcept->prefLabel, $sDefinition);
-			$sContent 		= str_replace($sPlaceholder, $sLink, $sContent);
-		}
-
 		// Alle Placeholder wieder herstellen
 		$oDom->clear();
 		$oDom->load($sContent);
@@ -451,7 +443,7 @@ class PPThesaurusManager {
 		$aIndex[35] 	= 'disabled'; // is the "#" sign
 
 		foreach ($aList as $oConcept) {
-			$sChar = ord(strtoupper($oConcept->label));
+			$sChar = ord(strtoupper($oConcept->prefLabel));
 			if (!($sChar >= 65 && $sChar <= 90)) {
 				$sChar = '35';
 			}
@@ -474,7 +466,7 @@ class PPThesaurusManager {
 
 		$aReturn = array();
 		foreach ($aList as $iId => $oConcept) {
-			$sChar = ord(strtoupper($oConcept->label));
+			$sChar = ord(strtoupper($oConcept->prefLabel));
 			if (!($sChar >= 65 && $sChar <= 90)) {
 				$sChar = '35';
 			}
@@ -661,7 +653,7 @@ class PPThesaurusManager {
 	}
 
 
-	protected function getConcepts ($sSort='sortByCount' ) {
+	protected function getConcepts () {
 		$this->setLanguage();
 		if (empty($this->sLanguage)) return $this->aConceptList;
 
@@ -737,18 +729,20 @@ class PPThesaurusManager {
 					$oConcept->rel 		= $aRow['rel'];
 					$oConcept->count 	= count(explode(' ', $oConcept->label));
 				}
-				$sDefinition = trim($aRow['definition']);
-				if (!empty($sDefinition)) {
-					switch ($aRow['definition lang']) {
-						case $this->sLanguage:
-							$aDefinitions[$this->sLanguage][] = $sDefinition;
-							break;
-						case $this->sDefaultLanguage:
-							$aDefinitions[$this->sDefaultLanguage][] = $sDefinition;
-							break;
-						default:
-							$aDefinitions['other'][] = $sDefinition;
-							break;
+				if (isset($aRow['definition'])) {
+					$sDefinition = trim($aRow['definition']);
+					if (!empty($sDefinition)) {
+						switch ($aRow['definition lang']) {
+							case $this->sLanguage:
+								$aDefinitions[$this->sLanguage][] = $sDefinition;
+								break;
+							case $this->sDefaultLanguage:
+								$aDefinitions[$this->sDefaultLanguage][] = $sDefinition;
+								break;
+							default:
+								$aDefinitions['other'][] = $sDefinition;
+								break;
+						}
 					}
 				}
 				$bFirst = false;
@@ -758,7 +752,7 @@ class PPThesaurusManager {
 			} elseif (!empty($aDefinitions[$this->sDefaultLanguage])) {
 				$oConcept->definition = $this->getDefinitionInfo() . join('<br />', array_unique($aDefinitions[$this->sDefaultLanguage]));
 			} elseif (!empty($aDefinitions['other'])) {
-				$oItem->definition = join('<br />', array_unique($aDefinitions['other']));
+				$oConcept->definition = join('<br />', array_unique($aDefinitions['other']));
 			}
 			$this->aConceptList[$i] = $oConcept;
 
@@ -928,6 +922,6 @@ class PPThesaurusManager {
 
 
 	protected function sortByLabel ($a, $b) {
-		return strcasecmp($a->label, $b->label);
+		return strcasecmp($a->prefLabel, $b->prefLabel);
 	}
 }
