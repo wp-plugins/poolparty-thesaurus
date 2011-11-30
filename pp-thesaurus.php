@@ -1,14 +1,17 @@
 <?php
 /*
 Plugin Name: PoolParty Thesaurus
-Plugin URI: http://poolparty.punkt.at
-Description: Instantly adds links to your posts and pages based on a thesaurus of definitions. Requires the <a href="https://github.com/semsol/arc2">ARC2 Toolkit</a>
-Version: 1.2
+Plugin URI: http://poolparty.biz
+Description: This plugin imports a SKOS thesaurus via <a href="https://github.com/semsol/arc2">ARC2</a>. It highlighs terms and generates links automatically in any page which contains terms from the thesaurus.
+Version: 2.2
 Author: Kurt Moser
-Author URI: http://www.punkt.at/8/7/kurt-moser.htm
+Author URI: http://www.semantic-web.at/users/kurt-moser
+Text Domain: pp-thesaurus
+Domain Path: /languages
 */
 
-/*  Copyright 2010  Kurt Moser  (email: moser@punkt.at)
+/*  
+	Copyright 2010-2011  Kurt Moser  (email: k.moser@semantic-web.at)
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -29,27 +32,137 @@ Author URI: http://www.punkt.at/8/7/kurt-moser.htm
 
 
 /* defines */
-
-define('PP_THESAURUS_PLUGIN_DIR', WP_PLUGIN_DIR . '/pp-thesaurus');
+define('PP_THESAURUS_PLUGIN_DIR', dirname(__FILE__));
+define('PP_THESAURUS_ARC_URL', 'https://github.com/semsol/arc2/zipball/master');
 
 
 /* includes */
-
 include_once(PP_THESAURUS_PLUGIN_DIR . '/classes/PPThesaurusManager.class.php');
 include_once(PP_THESAURUS_PLUGIN_DIR . '/classes/PPThesaurusItem.class.php');
+include_once(PP_THESAURUS_PLUGIN_DIR . '/classes/PPThesaurusTemplate.class.php');
+require_once(PP_THESAURUS_PLUGIN_DIR . '/classes/simple_html_dom.php');
+
+
+/* bootstrap */
+pp_thesaurus_install_arc();
+if (file_exists(PP_THESAURUS_PLUGIN_DIR . '/arc/ARC2.php') || class_exists('ARC2')) {
+	if (!class_exists('ARC2')) {
+		include_once(PP_THESAURUS_PLUGIN_DIR . '/arc/ARC2.php');
+	}
+	if (class_exists('PPThesaurusTemplate')) {
+		$oPPTManager 	= PPThesaurusManager::getInstance();
+		$oPPTTemplate 	= new PPThesaurusTemplate();
+
+		/* add options */
+		add_option('PPThesaurusId', 				0);									// The ID of the main glossary page
+		add_option('PPThesaurusPopup', 				1);									// Show/hide the tooltip
+		add_option('PPThesaurusLanguage', 			'en');								// Enabled languages for the thesaurus
+		add_option('PPThesaurusDBPediaEndpoint', 	'http://dbpedia.org/sparql');		// The DBPedia SPARQL endpoint
+		add_option('PPThesaurusSparqlEndpoint', 	'');								// The thesaurus SPARQL endpoint for import/update it 
+		add_option('PPThesaurusImportFile', 		'');								// The file name from the with the thesaurus data
+		add_option('PPThesaurusUpdated', 			'');								// The last import/update date 
+		add_option('PPThesaurusSidebarTitle', 		'Glossary Search');					// The title for the sidebar widget
+		add_option('PPThesaurusSidebarWidth', 		'100%');							// The width for the input field in the sidebar widget
+
+		/* hooks */
+		add_action('init',			'pp_thesaurus_init');
+		add_action('init',			'pp_thesaurus_init_textdomain');
+		add_action('admin_menu', 	'pp_thesaurus_settings_request');
+		add_filter('the_content', 	array($oPPTManager, 'parse'), 100);
+		add_filter('the_title', 	array($oPPTTemplate, 'setTitle'));
+		add_filter('wp_title', 		array($oPPTTemplate, 'setWPTitle'), 10, 3);
+
+		/* register shortcode */
+		add_shortcode('ppt-abcindex', 		array($oPPTTemplate, 'showABCIndex'));
+		add_shortcode('ppt-itemlist', 		array($oPPTTemplate, 'showItemList'));
+		add_shortcode('ppt-itemdetails', 	array($oPPTTemplate, 'showItemDetails'));
+		add_shortcode('ppt-noparse',		array($oPPTManager, 'cutContent'));
+	}
+} else {
+	add_action('init',			'pp_thesaurus_init_textdomain');
+	add_action('admin_menu', 	'pp_thesaurus_settings_request');
+}
+
+
+/* install ARC to cache the thesaurus */
+function pp_thesaurus_install_arc () {
+	if (file_exists(PP_THESAURUS_PLUGIN_DIR . '/arc/ARC2.php') || class_exists('ARC2')) {
+		return true;
+	}
+
+	if (!is_writable(PP_THESAURUS_PLUGIN_DIR)) {
+		return false;
+	}
+
+	// download ARC2
+	$sZipFileName = PP_THESAURUS_PLUGIN_DIR . '/arc.zip';
+	$sZipContent = file_get_contents(PP_THESAURUS_ARC_URL);
+	file_put_contents($sZipFileName, $sZipContent);
+
+	// unzip the file
+	$oZip = new ZipArchive;
+	if ($oZip->open($sZipFileName) === true) {
+		$oZip->extractTo(PP_THESAURUS_PLUGIN_DIR);
+		$oZip->close();
+	}
+
+	// move the entire contents into the arc folder
+	@rmdir(PP_THESAURUS_PLUGIN_DIR . '/arc');
+	@unlink($sZipFileName);
+
+	// rename the ARC2 folder to arc
+	$aFiles = scandir(PP_THESAURUS_PLUGIN_DIR);
+	$aDirs = array('.', '..', 'classes', 'css', 'js', 'languages');
+	foreach ($aFiles as $sFile) {
+		if (is_dir($sFile) && !in_array($sFile, $aDirs)) {
+			break;
+		}
+	}
+	rename(PP_THESAURUS_PLUGIN_DIR . '/' . $sFile, PP_THESAURUS_PLUGIN_DIR . '/arc');
+}
+
+
+/* add javascript and style links into header */
+function pp_thesaurus_init () {
+	if(defined('PP_THESAURUS_INIT')) return;
+	define('PP_THESAURUS_INIT',true);
+
+	if (!is_admin()) {		// instruction to only load if it is not the admin area
+		$iPopup = get_option('PPThesaurusPopup');
+		wp_enqueue_style('ppthesaurus_style', plugins_url('/css/style.css', __FILE__));
+	   	if ($iPopup == 1) {
+			wp_enqueue_script('jquery');
+			wp_enqueue_script('unitip_script', plugins_url('/js/unitip.js', __FILE__), array('jquery'));
+			wp_enqueue_style('unitip_style', plugins_url('/js/unitip/unitip.css', __FILE__));
+		}
+	}
+
+	// initialise the sidebar widget
+	$sTitle = __('Glossary Search', 'pp-thesaurus');
+	$sDescription = __('Search the glossary', 'pp-thesaurus');
+	if (function_exists('wp_register_sidebar_widget')) {
+		wp_register_sidebar_widget('pp_thesaurus_sidebar_search', $sTitle, 'pp_thesaurus_sidebar', array('description' => $sDescription));
+		wp_register_widget_control('pp_thesaurus_sidebar_search', $sTitle, 'pp_thesaurus_sidebar_control');
+	} elseif (function_exists('register_sidebar_sidebar_search')) {
+		register_sidebar_widget($sTitle, 'pp_thesaurus_sidebar');
+		register_widget_control($sTitle, 'pp_thesaurus_sidebar_control');
+	}
+	if (!is_admin() && is_active_widget('pp_thesaurus_sidebar')) {
+		wp_enqueue_script('autocomplete_script', plugins_url('/js/jquery.autocomplete.min.js', __FILE__), array('jquery'));
+		wp_enqueue_script('common_script', plugins_url('/js/script.js', __FILE__), array('autocomplete_script'));
+		wp_enqueue_style('autocomplete_style', plugins_url('/css/jquery.autocomplete.css', __FILE__));
+	}
+}
+
+/* load plugin translations */
+function pp_thesaurus_init_textdomain () {
+	load_plugin_textdomain('pp-thesaurus', false, dirname(plugin_basename( __FILE__ )) . '/languages');
+}
 
 
 
-/* hooks */
-
-add_option('PPThesaurusId', 	0);		//The ID of the main PoolParty Thesaurus page
-add_action('admin_menu', 	'pp_thesaurus_settings_request');
-add_filter('the_content', 	'pp_thesaurus_parse_content');
-add_filter('the_content', 	'pp_thesaurus_show_list');
-
-
-
-/* wp-admin */
+/* WP admin area */
+$pp_thesaurus_updated = false;
 
 function pp_thesaurus_settings_request () {
 	add_options_page('PoolParty Thesaurus Settings', 'PoolParty Thesaurus', 10, __FILE__, 'pp_thesaurus_settings');
@@ -58,160 +171,404 @@ function pp_thesaurus_settings_request () {
 function pp_thesaurus_settings () {
 	$sError = '';
 	if (isset($_POST['secureToken']) && ($_POST['secureToken'] == pp_thesaurus_get_secure_token())) {
-		pp_thesaurus_settigs_save();
-		$sError = pp_thesaurus_import();
+		$sError = pp_thesaurus_settings_save();
 	}
-	pp_thesaurus_settings_page ($sError);
+	pp_thesaurus_settings_page($sError);
 }
 
+
 function pp_thesaurus_settings_page ($sError='') {
+	global $pp_thesaurus_updated;
+
+	if (!class_exists('ARC2')) {
 	?>
 	<div class="wrap">
-		<h2>PoolParty Thesaurus Settings</h2>
-		<form method="post" action="" enctype="multipart/form-data">
-			<table class="form-table">
+		<h2><?php _e('PoolParty Thesaurus Settings', 'pp-thesaurus'); ?></h2>
+		<div id="message" class="error">
+			<p><strong><?php _e('Please install ARC2 first before you can change the settings!', 'pp-thesaurus'); ?></strong></p>
+		</div>
+		<p><?php _e('Download ARC2 from https://github.com/semsol/arc2 and unzip it. Open the unziped folder and upload the entire contents into the \'/wp-content/plugins/poolparty-thesaurus/arc/\' directory.', 'pp-thesaurus'); ?></p>
+	</div>
+	<?php
+		exit();
+	}
+
+	$iPopup 	= get_option('PPThesaurusPopup');
+	$sVariable 	= 'sPopup' . $iPopup;
+	$$sVariable = 'checked="checked" ';
+
+	$sImportFile 		= get_option('PPThesaurusImportFile');
+	$sSparqlEndpoint 	= get_option('PPThesaurusSparqlEndpoint');
+	$sDBPediaEndpoint 	= get_option('PPThesaurusDBPediaEndpoint');
+	$sUpdated 			= get_option('PPThesaurusUpdated');
+	$sDate = empty($sUpdated) ? 'undefined' : date('d.m.Y', $sUpdated);
+	$sFrom = empty($sImportFile) ? empty($sSparqlEndpoint) ? 'undefined' : 'SPARQL endpoint' : $sImportFile;
+	
+	$oPPTM = PPThesaurusManager::getInstance();
+
+	?>
+	<div class="wrap">
+		<h2><?php _e('PoolParty Thesaurus Settings', 'pp-thesaurus'); ?></h2>
 	<?php
 	if (!empty($sError)) {
-	?>
-				<tr valign="top">
-					<td colspan="2" style="color:red;"><?php echo $sError; ?></td>
-				</tr>
-	<?php
-	}
-	$sLanguage = get_option('PPThesaurusLanguage');
-	if (empty($sLanguage) || $sLanguage == 'en') {
-		$sLangEN 	= 'checked="checked" ';
-	} else {
-		$sLangOther = 'checked="checked" ';
-		$sOther		= $sLanguage;
+		echo '<div id="message" class="error"><p><strong>' . $sError . '</strong></p></div>';
+	} elseif (isset($_POST['secureToken']) && empty($sError)) {
+		echo '<div if="message" class="update fade"><p>' . __('Settings saved', 'pp-thesaurus') . '</p>';
+		if ($pp_thesaurus_updated) {
+			echo '<p>' . __('Please select the thesaurus languages.', 'pp-thesaurus') . '</p>';
+		}
+		echo '</div>';
 	}
 	?>
-				<tr valign="top">
-					<th scope="row">ID of main PoolParty Thesaurus page</th>
-					<td><input type="text" name="PPThesaurusId" value="<?php echo get_option('PPThesaurusId'); ?>" /></td>
-				</tr>
-				<tr valign="top">
-					<th scope="row">Import SKOS/RDF File</th>
-					<td><input type="file" name="rdfFile" value="" /></td>
-				</tr>
-				<tr valign="top">
-					<th scope="row">Set the Thesaurus language</th>
+		<h3><?php _e('Common settings', 'pp-thesaurus'); ?></h3>
+		<form method="post" action="">
+			<table class="form-table">
+				<tr valign="baseline">
+					<th scope="row"><?php _e('Options for automatic linking of recognized terms', 'pp-thesaurus'); ?></th>
 					<td>
-						<input type="radio" name="language" value="en" <?php echo $sLangEN; ?>/> en 
-						<input type="radio" name="language" value="other" <?php echo $sLangOther; ?>/> other: 
-						<input type="text" name="other" value="<?php echo $sOther; ?>" />
+						<input id="popup_1" type="radio" name="popup" value="1" <?php echo $sPopup1; ?>/>
+						<label for="popup_1"><?php _e('link and show description in tooltip',  'pp-thesaurus'); ?></label><br />
+						<input id="popup_0" type="radio" name="popup" value="0" <?php echo $sPopup0; ?>/>
+						<label for="popup_0"><?php _e('link without tooltip',  'pp-thesaurus'); ?></label><br />
+						<input id="popup_2" type="radio" name="popup" value="2" <?php echo $sPopup2; ?>/>
+						<label for="popup_2"><?php _e('automatic linking disabled',  'pp-thesaurus'); ?></label>
+					</td>
+				</tr>
+				<tr valign="baseline">
+	<?php
+	if ($oPPTM->existsTripleStore()) {
+		echo '<th scope="row">' . __('Thesaurus languages', 'pp-thesaurus') . '</th>';
+	} else {
+		echo '<th scope="row">' . __('Set the thesaurus languages after the import', 'pp-thesaurus') . '</th>';
+	}
+	?>
+					<td>
+						<?php echo pp_thesaurus_get_language_form(); ?>
+					</td>
+				</tr>
+				<tr valign="baseline">
+					<th scope="row"><?php _e('DBPedia SPARQL endpoint', 'pp-thesaurus'); ?></th>
+					<td>
+						URL: <input type="text" size="50" name="DBPediaEndpoint" value="<?php echo $sDBPediaEndpoint; ?>" />
 					</td>
 				</tr>
 			</table>
 			<p class="submit">
-				<input type="submit" class="button-primary" value="<?php _e('Save data') ?>" />
+				<input type="submit" class="button-primary" value="<?php _e('Save settings', 'pp-thesaurus') ?>" />
+				<input type="hidden" name="secureToken" value="<?php echo pp_thesaurus_get_secure_token(); ?>" />
+				<input type="hidden" name="from" value="common_settings" />
 			</p>
-			<p>
-				This plugin is provided by the <a href="http://poolparty.punkt.at/" target="_blank">PoolParty</a> Team.<br />
-				PoolParty is an easy-to-use SKOS editor for the Semantic Web
-			</p>
-			<input type="hidden" name="secureToken" value="<?php echo pp_thesaurus_get_secure_token(); ?>" />
 		</form>
+
+		<p>&nbsp;</p>
+		<h3><?php _e('Data settings', 'pp-thesaurus'); ?></h3>
+		<form method="post" action="" enctype="multipart/form-data">
+			<table class="form-table">
+				<tr valign="baseline">
+					<th scope="row" colspan="2"><strong><?php _e('Import/Update SKOS Thesaurus from', 'pp-thesaurus'); ?></strong>:</th>
+				</tr>
+				<tr valign="baseline">
+					<th scope="row"><?php _e('SPARQL endpoint', 'pp-thesaurus'); ?></th>
+					<td>
+						URL: <input type="text" size="50" name="SparqlEndpoint" value="<?php echo get_option('PPThesaurusSparqlEndpoint'); ?>" />
+					</td>
+				</tr>
+				<tr valign="baseline">
+					<th scope="row"><?php _e('RDF/XML file', 'pp-thesaurus'); ?></th>
+					<td><input type="file" size="50" name="rdfFile" value="" /></td>
+				</tr>
+				<tr valign="baseline">
+					<th scope="row" colspan="2">
+	<?php
+	if ($oPPTM->existsTripleStore()) {
+		printf(__('Last data update on %1$s from %2$s', 'pp-thesaurus'), "<strong>$sDate</strong>", "<strong>$sFrom</strong>");
+	} else {
+		echo '<span style="color:red;">' . __('Please import a SKOS Thesaurus', 'pp-thesaurus') . '.</span>';
+	}
+	?>
+					</th>
+				</tr>
+			</table>
+			<p class="submit">
+				<input type="submit" class="button-primary" value="<?php _e('Import/Update Thesaurus', 'pp-thesaurus') ?>" />
+				<input type="hidden" name="secureToken" value="<?php echo pp_thesaurus_get_secure_token(); ?>" />
+				<input type="hidden" name="from" value="data_settings" />
+			</p>
+		</form>
+		<p>
+			This plugin is provided by the <a href="http://poolparty.biz/" target="_blank">PoolParty</a> Team.<br />
+			PoolParty is an easy-to-use SKOS editor for the Semantic Web
+		</p>
 	</div>
 	<?php
 }
 
 
-function pp_thesaurus_settigs_save () {
-	$sLanguage = $_POST['language'] == 'other' ? empty($_POST['other']) ? 'en' : $_POST['other'] : $_POST['language'];
-	update_option('PPThesaurusLanguage', $sLanguage);
-	update_option('PPThesaurusId', $_POST['PPThesaurusId']);
+function pp_thesaurus_get_language_form () {
 
+	$oPPTM = PPThesaurusManager::getInstance();
+	if (!$oPPTM->existsTripleStore()) {
+		return '';
+	}
+	
+	$aStoredLanguages = array();
+	if ($sLang = get_option('PPThesaurusLanguage')) {
+		$aStoredLanguages = split('#', $sLang);
+	}
+
+	$aThesLanguages	= $oPPTM->getLanguages();
+	$aSysLanguages 	= array();
+	if (function_exists('qtrans_getSortedLanguages')) {
+		$aLang = qtrans_getSortedLanguages();
+		foreach ($aLang as $sLang) {
+			$aSysLanguages[$sLang] = qtrans_getLanguageName($sLang);
+		}
+	}
+
+	$sContent = '';
+	if (empty($aSysLanguages)) {
+		$sFirstLang = $aStoredLanguages[0];
+		foreach ($aThesLanguages as $sLang) {
+			$sChecked = $sLang == $sFirstLang ? 'checked="checked" ' : '';
+			$sContent .= '<input id="lang_' . $sLang . '" type="radio" name="languages[]" value="' . $sLang . '" ' . $sChecked . '/> ';
+			$sContent .= '<label for="lang_' . $sLang . '">' . $sLang . '</label><br />';
+		}
+	} else {
+		$aFlags = get_option('qtranslate_flags');
+		$sFlagPath = get_option('qtranslate_flag_location');
+		$sFlagPath = plugins_url() . substr($sFlagPath, strpos($sFlagPath, '/'));
+		foreach ($aSysLanguages as $sLang => $sLangName) {
+			if (in_array($sLang, $aThesLanguages)) {
+				if (empty($aStoredLanguages)) {
+					$sChecked = 'checked="checked" ';
+				} else {
+					$sChecked = in_array($sLang, $aStoredLanguages) ? 'checked="checked" ' : '';
+				}
+				$sContent .= '<input id="lang_' . $sLang . '" type="checkbox" name="languages[]" value="' . $sLang . '" ' . $sChecked . '/> ';
+				$sContent .= '<label for="lang_' . $sLang . '">';
+				$sContent .= '<img src="' . $sFlagPath . $aFlags[$sLang] . '" alt="Language: ' . $sLangName . '" /> ' . $sLangName . '</label><br />';
+			} else {
+				$sContent .= '<input id="lang_' . $sLang . '" type="checkbox" name="languages[]" value="' . $sLang . '" disabled="disabled" /> ';
+				$sContent .= '<img src="' . $sFlagPath . $aFlags[$sLang] . '" alt="Language: ' . $sLangName . '" /> ';
+			 	$sContent .= $sLangName . ' (' . __('not available', 'pp-thesaurus') . ')<br />';
+			}
+		}
+	}
+	return $sContent;
 }
 
-function pp_thesaurus_import () {
-	// Load RDF-Data into ARC store
-	$oPPGM = PPThesaurusManager::getInstance();
+
+function pp_thesaurus_settings_save () {
 	$sError = '';
-	try {
-		$oPPGM->import();
-	} catch (Exception $e) {
-		$sError = $e->getMessage();
+	$iPPThesaurusId = get_option('PPThesaurusId');
+	$sPPThesaurusUpdated = get_option('PPThesaurusUpdated');
+	switch ($_POST['from']) {
+		case 'common_settings':
+			update_option('PPThesaurusPopup', $_POST['popup']);
+			update_option('PPThesaurusLanguage', join('#', $_POST['languages']));
+			update_option('PPThesaurusDBPediaEndpoint', $_POST['DBPediaEndpoint']);
+			break;
+
+		case 'data_settings':
+			if (empty($_FILES['rdfFile']['name']) && empty($_POST['SparqlEndpoint'])) {
+				$sError = __('Please indicate the SPARQL endpoint or the SKOS file to be imported.', 'pp-thesaurus');
+			} else {
+				$sError = pp_thesaurus_import();
+			}
+			break;
+	}
+	// Check for old Versions (1.x) also
+	if ($iPPThesaurusId == 0 || $sPPThesaurusUpdated == false || empty($sPPThesaurusUpdated)) {
+		$iPageId = pp_thesaurus_add_pages();
+		update_option('PPThesaurusId', $iPageId);
 	}
 	return $sError;
 }
 
-function pp_thesaurus_get_secure_token () {
-	return substr(md5(DB_USER . DB_NAME), -10);
+function pp_thesaurus_add_pages() {
+	$aPageConf = array(
+		'post_type'		=> 'page',
+		'post_status'	=> 'publish',
+		'post_title'	=> 'Glossary',
+		'post_content'	=> "[ppt-abcindex]\n[ppt-itemlist]"
+	);
+	if (!($iPageId = wp_insert_post($aPageConf))) {
+		return 0;
+	}
+	$aChildPageConf = array(
+		'post_type'		=> 'page',
+		'post_status'	=> 'publish',
+		'post_title'	=> 'Item',
+		'post_content'	=> "[ppt-abcindex]\n[ppt-itemdetails]",
+		'post_parent'	=> $iPageId
+	);
+	if (!($iChildPageId = wp_insert_post($aChildPageConf))) {
+		return 0;
+	}
+
+	return $iPageId;
+}
+
+function pp_thesaurus_import () {
+	global $pp_thesaurus_updated;
+	// Load RDF-Data into ARC store
+	try {
+		if (!empty($_FILES['rdfFile']['name'])) {
+			PPThesaurusManager::importFromFile();
+			update_option('PPThesaurusImportFile', $_FILES['rdfFile']['name']);
+		} else {
+			PPThesaurusManager::importFromEndpoint();
+			pp_thesaurus_set_default_languages();
+			update_option('PPThesaurusSparqlEndpoint', $_POST['SparqlEndpoint']);
+			update_option('PPThesaurusImportFile', '');
+		}
+	} catch (Exception $e) {
+		return $e->getMessage();
+	}
+	update_option('PPThesaurusUpdated', time());
+	$pp_thesaurus_updated = true;
+	return '';
 }
 
 
-
-
-
-
-/* wp-content */
-
-function pp_thesaurus_parse_content ($sContent) {
-	$oPPGM = PPThesaurusManager::getInstance();
-	return $oPPGM->parse($sContent);
-}
-
-function pp_thesaurus_show_list ($sContent) {
-	$iPPThesaurusId = get_option('PPThesaurusId');
-	if (!is_page($iPPThesaurusId)) {
-		return $sContent;
+function pp_thesaurus_set_default_languages () {
+	// Set the default languages only if a new SPAQL endpoint is given
+	if (get_option('PPThesaurusSparqlEndpoint') == $_POST['SparqlEndpoint']) {
+		return false;
 	}
 
-	$oPPGM = PPThesaurusManager::getInstance();
-	if (!$oPPGM->exists()) {
-		return $sContent;
+	$oPPTM = PPThesaurusManager::getInstance();
+	if (!$oPPTM->existsTripleStore()) {
+		// No thesaurus data is given
+		return false;
+	}
+	
+	$aThesLanguages	= $oPPTM->getLanguages();
+	if (!function_exists('qtrans_getSortedLanguages')) {
+		update_option('PPThesaurusLanguage', $aThesLanguages[0]);
+		return true;
 	}
 
-	$oPage = get_page($iPPThesaurusId);
-	$aIndex = $oPPGM->getAbcIndex($_GET['filter']);
-	$sContent .= '<ul class="PPThesaurusAbcIndex">';
-	foreach($aIndex as $sChar => $sKind) {
-		$sLetter = ($sChar == 'ALL') ? 'ALL' : chr($sChar);
-		switch ($sKind) {
-			case 'disabled':
-				$sContent .= '<li>' . $sLetter . '</li>';
-				break;
-
-			case 'enabled':
-				$sContent .= '<li><a href="' . get_option('siteurl') . '/' . $oPage->post_name . '?filter=' . $sChar . '">' . $sLetter . '</a></li>';
-				break;
-
-			case 'selected':
-				$sContent .= '<li class="selected">' . $sLetter . '</li>';
-				break;
+	$aLanguages = array();
+	$aSysLanguages = qtrans_getSortedLanguages();
+	foreach ($aSysLanguages as $sLang) {
+		if (in_array($sLang, $aThesLanguages)) {
+			$aLanguages[] = $sLang;
 		}
 	}
-	$sContent .= '</ul>';
+	sort($aLanguages, SORT_STRING);
+	update_option('PPThesaurusLanguage', join('#', $aLanguages));
 
-	// generate the list of thesaurus items
-	$aList = $oPPGM->getList($_GET['filter']);
-	$sContent .= '<ul class="PPThesaurusList">';
-	$sLink = pp_thesaurus_link();
-	foreach($aList as $aItem) {
-		$sLabel = urlencode($aItem['label']);
-		
-		$sContent .= '<li><a href="' . $sLink . $sLabel . '">' . $aItem['label'] . '</a></li>';
-	}
-	$sContent .= '</ul>';
-
-	return $sContent;
+	return true;
 }
 
-function pp_thesaurus_link () {
-	$sLink = PPThesaurusManager::getTemplatePage();
-	return $sLink . '?label=';
+function pp_thesaurus_get_secure_token () {
+	return substr(md5(DB_USER . DB_NAME . 'ppThesaurus'), -10);
 }
 
+
+
+
+
+
+/* WP content area */
 function pp_thesaurus_to_link ($aItemList) {
 	if (empty($aItemList)) {
 		return array();
 	}
 
+	$oPPTM = PPThesaurusManager::getInstance();
 	$aLinks = array();
 	foreach ($aItemList as $oItem) {
-		$aLinks[] = '<a class="ppThesaurus" href="' . $oItem->link . '" title:"Thesaurus: ' . $oItem->prefLabel . '">' . $oItem->prefLabel . '</a>';
+		$sDefinition = $oPPTM->getDefinition($oItem->uri, $oItem->definition, true, true);
+		$aLinks[] = pp_thesaurus_get_link( $oItem->prefLabel, $oItem->uri, $oItem->prefLabel, $sDefinition, true);
 	}
 
 	return $aLinks;
 }
+
+function pp_thesaurus_get_link ($sText, $sUri, $sPrefLabel, $sDefinition, $bShowLink=false) {
+	if (empty($sDefinition)) {
+		if ($bShowLink) {
+			$sPage = pp_thesaurus_get_template_page();
+			$sLink = '<a class="ppThesaurus" href="' . $sPage . '?uri=' . $sUri . '" title="Term: ' . $sPrefLabel . '">' . $sText . '</a>';
+		} else {
+			$sLink = $sText;
+		}
+	} else {
+		$sPage = pp_thesaurus_get_template_page();
+		$sLink = '<a class="ppThesaurus" href="' . $sPage . '?uri=' . $sUri . '" title="Term: ' . $sPrefLabel . '">' . $sText . '</a>';
+		$sLink .= '<span style="display:none;">' . $sDefinition . '</span>';
+	}
+
+	return $sLink;
+}
+
+
+function pp_thesaurus_get_template_page () {
+	$iPPThesaurusId = get_option('PPThesaurusId');
+
+	$aChildren 	= get_children(array('numberposts'	=> 1,
+									 'post_parent'	=> $iPPThesaurusId,
+									 'post_type'	=> 'page'));
+	$oChild = array_shift($aChildren);
+
+	return get_page_link($iPPThesaurusId) . '/' . $oChild->post_name;
+}
+
+
+
+
+
+
+/* sidebar widget */
+function pp_thesaurus_sidebar ($aArgs) {
+	$sTitle = get_option('PPThesaurusSidebarTitle');
+	$sWidth = get_option('PPThesaurusSidebarWidth');
+	extract($aArgs);
+	echo $before_widget;
+	echo $before_title . $sTitle . $after_title;
+	echo '
+		<script type="text/javascript">
+		//<![CDATA[
+			var pp_thesaurus_suggest_url = "' . plugins_url('/pp-thesaurus-autocomplete.php', __FILE__) . '";
+		//]]>
+		</script>
+		<div class="PPThesaurus_sidebar">
+			<input id="pp_thesaurus_input_term" type="text" name="term" value="" title="' . $_e('Type a term ...', 'pp-thesaurus') . '" style="width:' . $sWidth . '" />
+		</div>
+	';
+	echo $after_widget;
+}
+
+function pp_thesaurus_sidebar_control () {
+	$sTitle = $sNewTitle = get_option('PPThesaurusSidebarTitle');
+	$sWidth = $sNewWidth = get_option('PPThesaurusSidebarWidth');
+	if (isset($_POST['pp_thesaurus_submit'] ) && $_POST['pp_thesaurus_submit'] ) {
+		$sNewTitle = trim(strip_tags(stripslashes($_POST['pp_thesaurus_title'])));
+		$sNewWidth = trim(stripslashes($_POST['pp_thesaurus_width']));
+		if (empty($sNewTitle)) $sNewTitle = 'Search Glossary';
+		if (empty($sNewWidth)) $sNewWidth = '100%';
+	}
+	if ($sTitle != $sNewTitle ) {
+		$sTitle = $sNewTitle;
+		update_option('PPThesaurusSidebarTitle', $sTitle);
+	}
+	if ($sWidth != $sNewWidth ) {
+		$sWidth = $sNewWidth;
+		update_option('PPThesaurusSidebarWidth', $sWidth);
+	}
+	$sTitle = htmlspecialchars($sTitle, ENT_QUOTES);
+?>
+	<p>
+		<label for="pp_thesaurus_title"><?php _e('Title', 'pp-thesaurus'); ?>: <br />
+		<input id="pp_thesaurus_title" name="pp_thesaurus_title" type="text" value="<?php echo $sTitle; ?>" /></label>
+	</p>
+	<p>
+		<label for="pp_thesaurus_width"><?php _e('Width of the search field', 'pp-thesaurus'); ?>: <br />
+		<input name="pp_thesaurus_width" type="text" value="<?php echo $sWidth; ?>" /></label> ('%' <?php _e('or', 'pp-thesaurus'); ?> 'px')
+	</p>
+	<input type="hidden" name="pp_thesaurus_submit" value="1" />
+<?php
+}
+
