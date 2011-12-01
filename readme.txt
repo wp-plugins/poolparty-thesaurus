@@ -95,6 +95,9 @@ The tooltip consists of a CSS file and three PNG pictures which can be found in 
 
 
 == Changelog ==
+= 2.2.2 - 01.12.2011 =
+* Fixed small error in the header title
+
 = 2.2.1 - 30.11.2011 =
 * Few bugfixes
 
