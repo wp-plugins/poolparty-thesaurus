@@ -26,14 +26,7 @@ class PPThesaurusManager {
 
 	protected function __construct () {
 		// Den internen ARC-Triplestore konfigurieren
-		$aConfig = array(
-			'db_host'		=> DB_HOST,
-			'db_name'		=> DB_NAME,
-			'db_user'		=> DB_USER,
-			'db_pwd'		=> DB_PASSWORD,
-			'store_name'	=> getWpPrefix() . 'pp_thesaurus',
-		);
-		$this->oStore = ARC2::getStore($aConfig);
+		$this->oStore = ARC2::getStore(self::getStoreConfig());
 		if (!$this->oStore->isSetUp()) {
 			$this->oStore->setUp();
 		}
@@ -52,6 +45,19 @@ class PPThesaurusManager {
 			self::$oInstance = new $sClass();
 		}
 		return self::$oInstance;
+	}
+
+
+	protected function getStoreConfig () {
+		$aConfig = array(
+			'db_host'		=> DB_HOST,
+			'db_name'		=> DB_NAME,
+			'db_user'		=> DB_USER,
+			'db_pwd'		=> DB_PASSWORD,
+			'store_name'	=> getWpPrefix() . 'pp_thesaurus',
+		);
+
+		return $aConfig;
 	}
 
 	
@@ -92,14 +98,7 @@ class PPThesaurusManager {
 		}
 
 		// Das angegebene SKOS File in den ARC-Triplestore laden
-		$aConfig = array(
-			'db_host'		=> DB_HOST,
-			'db_name'		=> DB_NAME,
-			'db_user'		=> DB_USER,
-			'db_pwd'		=> DB_PASSWORD,
-			'store_name'	=> getWpPrefix() . 'pp_thesaurus',
-		);
-		$oStore = ARC2::getStore($aConfig);
+		$oStore = ARC2::getStore(self::getStoreConfig());
 		if (!$oStore->isSetUp()) {
 			$oStore->setUp();
 		}
@@ -127,14 +126,7 @@ class PPThesaurusManager {
 		$oEPStore = ARC2::getRemoteStore($aConfig);
 
 		// Save data into ARC store
-		$aConfig = array(
-			'db_host'		=> DB_HOST,
-			'db_name'		=> DB_NAME,
-			'db_user'		=> DB_USER,
-			'db_pwd'		=> DB_PASSWORD,
-			'store_name'	=> getWpPrefix() . 'pp_thesaurus',
-		);
-		$oARCStore = ARC2::getStore($aConfig);
+		$oARCStore = ARC2::getStore(self::getStoreConfig());
 		if (!$oARCStore->isSetUp()) {
 			$oARCStore->setUp();
 		}
@@ -323,13 +315,8 @@ class PPThesaurusManager {
 		}
 
 		// is the page a thesaurus page?
-		$iPPThesaurusId = get_option('PPThesaurusId');
-		$aChildren      = get_children(array('numberposts'  => 1,
-											 'post_parent'  => $iPPThesaurusId,
-											 'post_type'    => 'page'));
-		$aIds       = array_keys($aChildren);
-		$aPages[]   = $iPPThesaurusId;
-		$aPages[]   = $aIds[0];
+		$oPage = PPThesaurusPage::getInstance();
+		$aPages = array($oPage->thesaurusId, $oPage->itemPage->ID);
 		if (in_array($post->ID, $aPages)) {
 			return false;
 		}
@@ -888,17 +875,27 @@ class PPThesaurusManager {
 		}
 
 		$aListStart 	= array();
+		$aListBegin 	= array();
 		$aListMiddle 	= array();
+		$aListEnd 		= array();
 		foreach ($aRows as $aData) {
 			$sData = $aData['label'] . '|' . $sUrl . '?uri=' . $aData['concept'];
-			if (stripos($aData['label'], $sString) > 0) {
-				$aListMiddle[] = $sData;
-			} else {
+			if (preg_match("/^$sString/i", $aData['label'])) {
 				$aListStart[] = $sData;
+			} elseif (preg_match("/ $sString/i", $aData['label'])) {
+				$aListBegin[] = $sData;
+			} elseif (preg_match("/$sString$/i", $aData['label'])) {
+				$aListEnd[] = $sData;
+			} else {
+				$aListMiddle[] = $sData;
 			}
 		}
+		sort($aListStart);
+		sort($aListBegin);
+		sort($aListMiddle);
+		sort($aListEnd);
 
-		$aList = array_merge($aListStart, $aListMiddle);
+		$aList = array_merge($aListStart, $aListBegin, $aListMiddle, $aListEnd);
 
 		return $aList;
 	}
@@ -910,6 +907,12 @@ class PPThesaurusManager {
 		$sDefinition  = '<span class="PPThesaurusDefInfo">' . sprintf(__('Definition not available in %s', 'pp-thesaurus'), strtolower($sSelLang)) . '.</span>';
 		$sDefinition .= '<strong>' . sprintf(__('Definition in %s', 'pp-thesaurus'), strtolower($sDefLang)) . '</strong>:<br />';
 		return $sDefinition;
+	}
+
+
+	public function getItemLink () {
+		$oPage = PPThesaurusPage::getInstance();
+		return get_bloginfo('url', 'display') . '/' . $oPage->thesaurusPage->post_name . '/' . $oPage->itemPage->post_name;
 	}
 
 

@@ -3,7 +3,7 @@
 Plugin Name: PoolParty Thesaurus
 Plugin URI: http://poolparty.biz
 Description: This plugin imports a SKOS thesaurus via <a href="https://github.com/semsol/arc2">ARC2</a>. It highlighs terms and generates links automatically in any page which contains terms from the thesaurus.
-Version: 2.2.3
+Version: 2.3
 Author: Kurt Moser
 Author URI: http://www.semantic-web.at/users/kurt-moser
 Text Domain: pp-thesaurus
@@ -33,11 +33,12 @@ Domain Path: /languages
 
 /* defines */
 define('PP_THESAURUS_PLUGIN_DIR', dirname(__FILE__));
-define('PP_THESAURUS_ARC_URL', 'https://github.com/semsol/arc2/zipball/master');
+define('PP_THESAURUS_ARC_URL', 'https://github.com/semsol/arc2/tarball/master');
 
 
 /* includes */
 include_once(PP_THESAURUS_PLUGIN_DIR . '/classes/PPThesaurusManager.class.php');
+include_once(PP_THESAURUS_PLUGIN_DIR . '/classes/PPThesaurusPage.class.php');
 include_once(PP_THESAURUS_PLUGIN_DIR . '/classes/PPThesaurusItem.class.php');
 include_once(PP_THESAURUS_PLUGIN_DIR . '/classes/PPThesaurusTemplate.class.php');
 require_once(PP_THESAURUS_PLUGIN_DIR . '/classes/simple_html_dom.php');
@@ -62,6 +63,7 @@ if (file_exists(PP_THESAURUS_PLUGIN_DIR . '/arc/ARC2.php') || class_exists('ARC2
 		add_option('PPThesaurusImportFile', 		'');								// The file name from the with the thesaurus data
 		add_option('PPThesaurusUpdated', 			'');								// The last import/update date 
 		add_option('PPThesaurusSidebarTitle', 		'Glossary Search');					// The title for the sidebar widget
+		add_option('PPThesaurusSidebarInfo', 		'Type a term ...');					// The info text for the sidebar widget
 		add_option('PPThesaurusSidebarWidth', 		'100%');							// The width for the input field in the sidebar widget
 
 		/* hooks */
@@ -84,7 +86,7 @@ if (file_exists(PP_THESAURUS_PLUGIN_DIR . '/arc/ARC2.php') || class_exists('ARC2
 }
 
 
-/* install ARC to cache the thesaurus */
+/* install ARC2 for caching the thesaurus */
 function pp_thesaurus_install_arc () {
 	if (file_exists(PP_THESAURUS_PLUGIN_DIR . '/arc/ARC2.php') || class_exists('ARC2')) {
 		return true;
@@ -94,44 +96,59 @@ function pp_thesaurus_install_arc () {
 		return false;
 	}
 
-	// download ARC2
-	$sZipFileName = PP_THESAURUS_PLUGIN_DIR . '/arc.zip';
-	$sZipContent = file_get_contents(PP_THESAURUS_ARC_URL);
-	file_put_contents($sZipFileName, $sZipContent);
+	$sDir = getcwd();
+	chdir(PP_THESAURUS_PLUGIN_DIR);
 
-	// unzip the file
-	$oZip = new ZipArchive;
-	if ($oZip->open($sZipFileName) === true) {
-		$oZip->extractTo(PP_THESAURUS_PLUGIN_DIR);
-		$oZip->close();
+	// download ARC2
+	$sTarFileName 	= 'arc.tar.gz';
+	$sCmd 			= 'wget --no-check-certificate -T 2 -t 1 -O ' . $sTarFileName . ' ' . PP_THESAURUS_ARC_URL . ' 2>&1';
+	$aOutput 		= array();
+	exec($sCmd, $aOutput, $iResult);
+	if ($iResult != 0) {
+		chdir($sDir);
+		return false;
 	}
 
-	// move the entire contents into the arc folder
-	@rmdir(PP_THESAURUS_PLUGIN_DIR . '/arc');
-	@unlink($sZipFileName);
+	// untar the file
+	$sCmd 		= 'tar -xvzf ' . $sTarFileName . ' 2>&1';
+	$aOutput 	= array();
+	exec($sCmd, $aOutput, $iResult);
+	if ($iResult != 0) {
+		chdir($sDir);
+		return false;
+	}
+
+	// delete old arc direcotry and tar file
+	@rmdir('arc');
+	@unlink($sTarFileName);
 
 	// rename the ARC2 folder to arc
-	$aFiles = scandir(PP_THESAURUS_PLUGIN_DIR);
-	$aDirs = array('.', '..', 'classes', 'css', 'js', 'languages');
-	foreach ($aFiles as $sFile) {
-		if (is_dir($sFile) && !in_array($sFile, $aDirs)) {
-			break;
-		}
+	$sCmd		= 'mv semsol-arc2-* arc 2>&1';
+	$aOutput 	= array();
+	exec($sCmd, $aOutput, $iResult);
+	if ($iResult != 0) {
+		chdir($sDir);
+		return false;
 	}
-	rename(PP_THESAURUS_PLUGIN_DIR . '/' . $sFile, PP_THESAURUS_PLUGIN_DIR . '/arc');
+	
+	chdir($sDir);
+	return true;
 }
 
 
 /* add javascript and style links into header */
 function pp_thesaurus_init () {
 	if(defined('PP_THESAURUS_INIT')) return;
-	define('PP_THESAURUS_INIT',true);
+	define('PP_THESAURUS_INIT', true);
 
 	if (!is_admin()) {		// instruction to only load if it is not the admin area
+		wp_enqueue_script('jquery');
+		wp_enqueue_script('ppt_autocomplete_script', plugins_url('/js/jquery.autocomplete.min.js', __FILE__), array('jquery'));
+		wp_enqueue_script('ppt_common_script', plugins_url('/js/script.js', __FILE__), array('ppt_autocomplete_script'));
+		wp_enqueue_style('ppt_autocomplete_style', plugins_url('/css/jquery.autocomplete.css', __FILE__));
+		wp_enqueue_style('ppt_style', plugins_url('/css/style.css', __FILE__));
 		$iPopup = get_option('PPThesaurusPopup');
-		wp_enqueue_style('ppthesaurus_style', plugins_url('/css/style.css', __FILE__));
 	   	if ($iPopup == 1) {
-			wp_enqueue_script('jquery');
 			wp_enqueue_script('unitip_script', plugins_url('/js/unitip.js', __FILE__), array('jquery'));
 			wp_enqueue_style('unitip_style', plugins_url('/js/unitip/unitip.css', __FILE__));
 		}
@@ -146,11 +163,6 @@ function pp_thesaurus_init () {
 	} elseif (function_exists('register_sidebar_sidebar_search')) {
 		register_sidebar_widget($sTitle, 'pp_thesaurus_sidebar');
 		register_widget_control($sTitle, 'pp_thesaurus_sidebar_control');
-	}
-	if (!is_admin() && is_active_widget('pp_thesaurus_sidebar')) {
-		wp_enqueue_script('autocomplete_script', plugins_url('/js/jquery.autocomplete.min.js', __FILE__), array('jquery'));
-		wp_enqueue_script('common_script', plugins_url('/js/script.js', __FILE__), array('autocomplete_script'));
-		wp_enqueue_style('autocomplete_style', plugins_url('/css/jquery.autocomplete.css', __FILE__));
 	}
 }
 
@@ -208,12 +220,13 @@ function pp_thesaurus_settings_page ($sError='') {
 
 	?>
 	<div class="wrap">
+		<div class="icon32" id="icon-options-general"></div>
 		<h2><?php _e('PoolParty Thesaurus Settings', 'pp-thesaurus'); ?></h2>
 	<?php
 	if (!empty($sError)) {
 		echo '<div id="message" class="error"><p><strong>' . $sError . '</strong></p></div>';
 	} elseif (isset($_POST['secureToken']) && empty($sError)) {
-		echo '<div if="message" class="update fade"><p>' . __('Settings saved', 'pp-thesaurus') . '</p>';
+		echo '<div id="message" class="updated fade"><p>' . __('Settings saved', 'pp-thesaurus') . '</p>';
 		if ($pp_thesaurus_updated) {
 			echo '<p>' . __('Please select the thesaurus languages.', 'pp-thesaurus') . '</p>';
 		}
@@ -274,7 +287,7 @@ function pp_thesaurus_settings_page ($sError='') {
 					</td>
 				</tr>
 				<tr valign="baseline">
-					<th scope="row"><?php _e('RDF/XML file', 'pp-thesaurus'); ?></th>
+					<th scope="row"><?php _e('RDF/XML file', 'pp-thesaurus'); ?> (max. <?php echo ini_get('post_max_size'); ?>B)</th>
 					<td><input type="file" size="50" name="rdfFile" value="" /></td>
 				</tr>
 				<tr valign="baseline">
@@ -488,15 +501,16 @@ function pp_thesaurus_to_link ($aItemList) {
 }
 
 function pp_thesaurus_get_link ($sText, $sUri, $sPrefLabel, $sDefinition, $bShowLink=false) {
+	$oPPTM = PPThesaurusManager::getInstance();
 	if (empty($sDefinition)) {
 		if ($bShowLink) {
-			$sPage = pp_thesaurus_get_template_page();
+			$sPage = $oPPTM->getItemLink();
 			$sLink = '<a class="ppThesaurus" href="' . $sPage . '?uri=' . $sUri . '" title="Term: ' . $sPrefLabel . '">' . $sText . '</a>';
 		} else {
 			$sLink = $sText;
 		}
 	} else {
-		$sPage = pp_thesaurus_get_template_page();
+		$sPage = $oPPTM->getItemLink();
 		$sLink = '<a class="ppThesaurus" href="' . $sPage . '?uri=' . $sUri . '" title="Term: ' . $sPrefLabel . '">' . $sText . '</a>';
 		$sLink .= '<span style="display:none;">' . $sDefinition . '</span>';
 	}
@@ -504,17 +518,6 @@ function pp_thesaurus_get_link ($sText, $sUri, $sPrefLabel, $sDefinition, $bShow
 	return $sLink;
 }
 
-
-function pp_thesaurus_get_template_page () {
-	$iPPThesaurusId = get_option('PPThesaurusId');
-
-	$aChildren 	= get_children(array('numberposts'	=> 1,
-									 'post_parent'	=> $iPPThesaurusId,
-									 'post_type'	=> 'page'));
-	$oChild = array_shift($aChildren);
-
-	return get_page_link($iPPThesaurusId) . '/' . $oChild->post_name;
-}
 
 
 
@@ -524,6 +527,7 @@ function pp_thesaurus_get_template_page () {
 /* sidebar widget */
 function pp_thesaurus_sidebar ($aArgs) {
 	$sTitle = get_option('PPThesaurusSidebarTitle');
+	$sInfo 	= get_option('PPThesaurusSidebarInfo');
 	$sWidth = get_option('PPThesaurusSidebarWidth');
 	extract($aArgs);
 	echo $before_widget;
@@ -535,7 +539,7 @@ function pp_thesaurus_sidebar ($aArgs) {
 		//]]>
 		</script>
 		<div class="PPThesaurus_sidebar">
-			<input id="pp_thesaurus_input_term" type="text" name="term" value="" title="' . __('Type a term ...', 'pp-thesaurus') . '" style="width:' . $sWidth . '" />
+			<input id="pp_thesaurus_input_term" type="text" name="term" value="" title="' . $sInfo . '" style="width:' . $sWidth . '" />
 		</div>
 	';
 	echo $after_widget;
@@ -543,16 +547,22 @@ function pp_thesaurus_sidebar ($aArgs) {
 
 function pp_thesaurus_sidebar_control () {
 	$sTitle = $sNewTitle = get_option('PPThesaurusSidebarTitle');
+	$sInfo 	= $sNewInfo	 = get_option('PPThesaurusSidebarInfo');
 	$sWidth = $sNewWidth = get_option('PPThesaurusSidebarWidth');
 	if (isset($_POST['pp_thesaurus_submit'] ) && $_POST['pp_thesaurus_submit'] ) {
-		$sNewTitle = trim(strip_tags(stripslashes($_POST['pp_thesaurus_title'])));
-		$sNewWidth = trim(stripslashes($_POST['pp_thesaurus_width']));
-		if (empty($sNewTitle)) $sNewTitle = 'Search Glossary';
+		$sNewTitle 	= trim(strip_tags(stripslashes($_POST['pp_thesaurus_title'])));
+		$sNewInfo 	= trim(strip_tags(stripslashes($_POST['pp_thesaurus_info'])));
+		$sNewWidth 	= trim(stripslashes($_POST['pp_thesaurus_width']));
+		if (empty($sNewTitle)) $sNewTitle = 'Thesaurus Search';
 		if (empty($sNewWidth)) $sNewWidth = '100%';
 	}
 	if ($sTitle != $sNewTitle ) {
 		$sTitle = $sNewTitle;
 		update_option('PPThesaurusSidebarTitle', $sTitle);
+	}
+	if ($sInfo != $sNewInfo ) {
+		$sInfo = $sNewInfo;
+		update_option('PPThesaurusSidebarInfo', $sInfo);
 	}
 	if ($sWidth != $sNewWidth ) {
 		$sWidth = $sNewWidth;
@@ -562,7 +572,11 @@ function pp_thesaurus_sidebar_control () {
 ?>
 	<p>
 		<label for="pp_thesaurus_title"><?php _e('Title', 'pp-thesaurus'); ?>: <br />
-		<input id="pp_thesaurus_title" name="pp_thesaurus_title" type="text" value="<?php echo $sTitle; ?>" /></label>
+		<input id="pp_thesaurus_title" class="widefat" name="pp_thesaurus_title" type="text" value="<?php echo $sTitle; ?>" /></label>
+	</p>
+	<p>
+		<label for="pp_thesaurus_info"><?php _e('Info text', 'pp-thesaurus'); ?>: <br />
+		<input id="pp_thesaurus_info" class="widefat" name="pp_thesaurus_info" type="text" value="<?php echo $sInfo; ?>" /></label>
 	</p>
 	<p>
 		<label for="pp_thesaurus_width"><?php _e('Width of the search field', 'pp-thesaurus'); ?>: <br />

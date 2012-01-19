@@ -11,9 +11,6 @@ class PPThesaurusTemplate {
 	}
 
 	public function showABCIndex ($aAtts) {
-		$iPPThesaurusId = get_option('PPThesaurusId');
-		$oPage 			= get_page($iPPThesaurusId);
-		$i 				= 1;
 
 		if (isset($_GET['filter'])) {
 			$iChar = $_GET['filter'];
@@ -28,13 +25,15 @@ class PPThesaurusTemplate {
 
 			$iChar = ord(strtoupper($this->oItem->prefLabel));
 		}
+		$oPage		= PPThesaurusPage::getInstance();
 		$aIndex 	= $this->oPPTM->getAbcIndex($iChar);
 		$iCount 	= count($aIndex);
 		$sContent 	= '<ul class="PPThesaurusAbcIndex">';
+		$i 			= 1;
 		foreach($aIndex as $sChar => $sKind) {
 			$sClass = ($i == 1) ? 'first' : ($i == $iCount ? 'last' : '');
 			$sLetter = ($sChar == 'ALL') ? 'ALL' : chr($sChar);
-			$sLink = '<a href="' . get_bloginfo('url', 'display') . '/' . $oPage->post_name . '?filter=' . $sChar . '">' . $sLetter . '</a>';
+			$sLink = '<a href="' . get_bloginfo('url', 'display') . '/' . $oPage->thesaurusPage->post_name . '?filter=' . $sChar . '">' . $sLetter . '</a>';
 			switch ($sKind) {
 				case 'disabled':
 					if (!empty($sClass)) {
@@ -92,6 +91,9 @@ class PPThesaurusTemplate {
 		}
 
 		$sContent = '<div class="PPThesaurusDetails">';
+		if ($this->oItem->searchLink) {
+			$sContent .= '<p>' . __('Search for documents related with', 'pp-thesaurus') . ' <a href="' . $this->oItem->searchLink . '">' . $this->oItem->prefLabel . '</a></p>';
+		}
 		if ($this->oItem->altLabels) {
 			$sContent .= '<div class="synonyms"><strong>' . __('Synonyms', 'pp-thesaurus') . ':</strong> ' . implode(', ', $this->oItem->altLabels) . '</div>';
 		}
@@ -119,10 +121,6 @@ class PPThesaurusTemplate {
 			$sContent .= '<p>' . sprintf(__('Linked data frontend for %s', 'pp-thesaurus'), $sLink) . '.</p>';
 		}
 
-		if ($this->oItem->searchLink) {
-			$sContent .= '<p><strong>' . __('Search for', 'pp-thesaurus') . '</strong> <a href="' . $this->oItem->searchLink . '" title="' . __('Search for', 'pp-thesaurus') . ' ' . $this->oItem->prefLabel . '">' . $this->oItem->prefLabel . '</a></p>';
-		}
-
 		$sContent .= '</div>';
 
 		return $sContent;
@@ -140,11 +138,8 @@ class PPThesaurusTemplate {
 	}
 
 	public function setTitle ($sTitle) {
-	    $iPPThesaurusId = get_option('PPThesaurusId');
-	    $aChildren  = get_children(array('numberposts'  => 1,
-										 'post_parent'  => $iPPThesaurusId,
-										 'post_type'    => 'page'));
-		$oChild = array_shift($aChildren);
+		$oPage	= PPThesaurusPage::getInstance();
+		$oChild = $oPage->itemPage;
 		$sTitle = trim($sTitle);
 
 		if (!is_page($oChild->ID)) {

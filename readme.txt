@@ -93,8 +93,12 @@ The tooltip consists of a CSS file and three PNG pictures which can be found in 
 3. Admin settings page
 
 
-
 == Changelog ==
+= 2.3 - 19.01.2012 =
+* Improved the autocomplete field (sidebar-widget)
+* Performance improvements
+* Bugfix for the wordpress version 3.3.1
+
 = 2.2.2 - 01.12.2011 =
 * Fixed small error in the header title
 
