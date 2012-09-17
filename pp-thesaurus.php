@@ -3,7 +3,7 @@
 Plugin Name: PoolParty Thesaurus
 Plugin URI: http://poolparty.biz
 Description: This plugin imports a SKOS thesaurus via <a href="https://github.com/semsol/arc2">ARC2</a>. It highlighs terms and generates links automatically in any page which contains terms from the thesaurus.
-Version: 2.3
+Version: 2.4
 Author: Kurt Moser
 Author URI: http://www.semantic-web.at/users/kurt-moser
 Text Domain: pp-thesaurus
@@ -287,7 +287,7 @@ function pp_thesaurus_settings_page ($sError='') {
 					</td>
 				</tr>
 				<tr valign="baseline">
-					<th scope="row"><?php _e('RDF/XML file', 'pp-thesaurus'); ?> (max. <?php echo ini_get('post_max_size'); ?>B)</th>
+					<th scope="row"><?php _e('RDF/XML file', 'pp-thesaurus'); ?> (max. <?php echo ini_get('upload_max_filesize'); ?>B)</th>
 					<td><input type="file" size="50" name="rdfFile" value="" /></td>
 				</tr>
 				<tr valign="baseline">

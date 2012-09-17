@@ -94,6 +94,9 @@ The tooltip consists of a CSS file and three PNG pictures which can be found in 
 
 
 == Changelog ==
+= 2.4 - 17.09.2012 =
+* Small bug fix
+
 = 2.3 - 19.01.2012 =
 * Improved the autocomplete field (sidebar-widget)
 * Performance improvements
