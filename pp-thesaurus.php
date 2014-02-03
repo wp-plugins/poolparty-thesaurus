@@ -3,14 +3,16 @@
 Plugin Name: PoolParty Thesaurus
 Plugin URI: http://poolparty.biz
 Description: This plugin imports a SKOS thesaurus via <a href="https://github.com/semsol/arc2">ARC2</a>. It highlighs terms and generates links automatically in any page which contains terms from the thesaurus.
-Version: 2.4
+Version: 2.4.1
 Author: Kurt Moser
 Author URI: http://www.semantic-web.at/users/kurt-moser
 Text Domain: pp-thesaurus
 Domain Path: /languages
 */
 
-/*  
+
+
+/*
 	Copyright 2010-2011  Kurt Moser  (email: k.moser@semantic-web.at)
 
     This program is free software; you can redistribute it and/or modify
@@ -130,7 +132,7 @@ function pp_thesaurus_install_arc () {
 		chdir($sDir);
 		return false;
 	}
-	
+
 	chdir($sDir);
 	return true;
 }
@@ -215,7 +217,7 @@ function pp_thesaurus_settings_page ($sError='') {
 	$sUpdated 			= get_option('PPThesaurusUpdated');
 	$sDate = empty($sUpdated) ? 'undefined' : date('d.m.Y', $sUpdated);
 	$sFrom = empty($sImportFile) ? empty($sSparqlEndpoint) ? 'undefined' : 'SPARQL endpoint' : $sImportFile;
-	
+
 	$oPPTM = PPThesaurusManager::getInstance();
 
 	?>
@@ -323,7 +325,7 @@ function pp_thesaurus_get_language_form () {
 	if (!$oPPTM->existsTripleStore()) {
 		return '';
 	}
-	
+
 	$aStoredLanguages = array();
 	if ($sLang = get_option('PPThesaurusLanguage')) {
 		$aStoredLanguages = split('#', $sLang);
@@ -455,7 +457,7 @@ function pp_thesaurus_set_default_languages () {
 		// No thesaurus data is given
 		return false;
 	}
-	
+
 	$aThesLanguages	= $oPPTM->getLanguages();
 	if (!function_exists('qtrans_getSortedLanguages')) {
 		update_option('PPThesaurusLanguage', $aThesLanguages[0]);
