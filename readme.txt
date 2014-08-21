@@ -8,7 +8,7 @@ Tested up to: 2.9
 Stable tag: trunk
 
 
-PoolParty plugin makes websites more understandable. Blogs benefit from linking posts with key terms automatically. The plugin uses SKOS vocabularies.
+PoolParty Thesaurus plugin makes websites more understandable. Blogs benefit from linking posts with key terms automatically. The plugin uses SKOS vocabularies.
 
 
 == Description ==
@@ -94,6 +94,17 @@ The tooltip consists of a CSS file and three PNG pictures which can be found in 
 
 
 == Changelog ==
+= 2.5.0 - 21.08.2014 =
+* Added Multi site support
+* Adapted the plugin settings page
+* Improved the uninstall mechanism
+* Improved sidebar widget *Glossary Search*
+* Changed style for the automatically generated links
+* Changed style for the tooltip
+
+= 2.4.1 - 03.02.2014 =
+* Small bug fix on autocomplete function
+
 = 2.4 - 17.09.2012 =
 * Small bug fix
 

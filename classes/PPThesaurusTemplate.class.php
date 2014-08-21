@@ -71,7 +71,7 @@ class PPThesaurusTemplate {
 			foreach($aList as $oConcept) {
 				$sClass = ($i == 1) ? ' class="first"' : ($i == $iCount ? ' class="last"' : '');
 				$sDefinition = $this->oPPTM->getDefinition($oConcept->uri, $oConcept->definition, true, true);
-				$sContent .= '<li' . $sClass . '>' . pp_thesaurus_get_link($oConcept->prefLabel, $oConcept->uri, $oConcept->prefLabel, $sDefinition, true) . '</li>';
+				$sContent .= '<li' . $sClass . '>' . $this->createLink($oConcept->prefLabel, $oConcept->uri, $oConcept->prefLabel, $sDefinition, true) . '</li>';
 				$i++;
 			}
 			$sContent .= '</ul>';
@@ -104,15 +104,15 @@ class PPThesaurusTemplate {
 		}
 
 		if ($this->oItem->relatedList) {
-			$sContent .= '<p class="relation"><strong>' . __('Related terms', 'pp-thesaurus') . ':</strong><br />' . implode(', ', pp_thesaurus_to_link($this->oItem->relatedList)) . '</p>';
+			$sContent .= '<p class="relation"><strong>' . __('Related terms', 'pp-thesaurus') . ':</strong><br />' . implode(', ', $this->createLinks($this->oItem->relatedList)) . '</p>';
 		}
 
 		if ($this->oItem->broaderList) {
-			$sContent .= '<p class="relation"><strong>' . __('Broader terms', 'pp-thesaurus') . ':</strong><br />' . implode(', ', pp_thesaurus_to_link($this->oItem->broaderList)) . '</p>';
+			$sContent .= '<p class="relation"><strong>' . __('Broader terms', 'pp-thesaurus') . ':</strong><br />' . implode(', ', $this->createLinks($this->oItem->broaderList)) . '</p>';
 		}
 
 		if ($this->oItem->narrowerList) {
-			$sContent .= '<p class="relation"><strong>' . __('Narrower terms', 'pp-thesaurus') . ':</strong><br />' . implode(', ', pp_thesaurus_to_link($this->oItem->narrowerList)) . '</p>';
+			$sContent .= '<p class="relation"><strong>' . __('Narrower terms', 'pp-thesaurus') . ':</strong><br />' . implode(', ', $this->createLinks($this->oItem->narrowerList)) . '</p>';
 		}
 
 		if ($this->oItem->uri) {
@@ -136,6 +136,7 @@ class PPThesaurusTemplate {
 
 		return sprintf(__('Definition of %s', 'pp-thesaurus'), $sNewTitle);
 	}
+
 
 	public function setTitle ($sTitle) {
 		$oPage	= PPThesaurusPage::getInstance();
@@ -165,5 +166,108 @@ class PPThesaurusTemplate {
 		}
 
 		return $this->oItem->prefLabel;
+	}
+
+
+	public function showSidebar ($aArgs) {
+		$sTitle = get_option('PPThesaurusSidebarTitle');
+		$sInfo 	= get_option('PPThesaurusSidebarInfo');
+		$sWidth = get_option('PPThesaurusSidebarWidth');
+		extract($aArgs);
+		echo $before_widget;
+		echo $before_title . $sTitle . $after_title;
+		echo '
+			<script type="text/javascript">
+			//<![CDATA[
+				var pp_thesaurus_suggest_url = "' . plugins_url('/pp-thesaurus-autocomplete.php', dirname(__FILE__)) . '";
+			//]]>
+			</script>
+			<div class="PPThesaurus_sidebar">
+				<input id="pp_thesaurus_input_term" type="text" name="term" value="" title="' . $sInfo . '" style="width:' . $sWidth . '" />
+			</div>
+		';
+		echo $after_widget;
+	}
+
+
+	public function showSidebarControl () {
+		$sTitle = $sNewTitle = get_option('PPThesaurusSidebarTitle');
+		$sInfo 	= $sNewInfo	 = get_option('PPThesaurusSidebarInfo');
+		$sWidth = $sNewWidth = get_option('PPThesaurusSidebarWidth');
+		if (isset($_POST['pp_thesaurus_submit'] ) && $_POST['pp_thesaurus_submit'] ) {
+			$sNewTitle 	= trim(strip_tags(stripslashes($_POST['pp_thesaurus_title'])));
+			$sNewInfo 	= trim(strip_tags(stripslashes($_POST['pp_thesaurus_info'])));
+			$sNewWidth 	= trim(stripslashes($_POST['pp_thesaurus_width']));
+			if (empty($sNewTitle)) $sNewTitle = 'Thesaurus Search';
+			if (empty($sNewWidth)) $sNewWidth = '100%';
+		}
+		if ($sTitle != $sNewTitle ) {
+			$sTitle = $sNewTitle;
+			update_option('PPThesaurusSidebarTitle', $sTitle);
+		}
+		if ($sInfo != $sNewInfo ) {
+			$sInfo = $sNewInfo;
+			update_option('PPThesaurusSidebarInfo', $sInfo);
+		}
+		if ($sWidth != $sNewWidth ) {
+			$sWidth = $sNewWidth;
+			update_option('PPThesaurusSidebarWidth', $sWidth);
+		}
+		$sTitle = htmlspecialchars($sTitle, ENT_QUOTES);
+	?>
+		<p>
+			<label for="pp_thesaurus_title"><?php _e('Title', 'pp-thesaurus'); ?>: <br />
+			<input id="pp_thesaurus_title" class="widefat" name="pp_thesaurus_title" type="text" value="<?php echo $sTitle; ?>" /></label>
+		</p>
+		<p>
+			<label for="pp_thesaurus_info"><?php _e('Info text', 'pp-thesaurus'); ?>: <br />
+			<input id="pp_thesaurus_info" class="widefat" name="pp_thesaurus_info" type="text" value="<?php echo $sInfo; ?>" /></label>
+		</p>
+		<p>
+			<label for="pp_thesaurus_width"><?php _e('Width of the search field', 'pp-thesaurus'); ?>: <br />
+			<input name="pp_thesaurus_width" type="text" value="<?php echo $sWidth; ?>" /></label> ('%' <?php _e('or', 'pp-thesaurus'); ?> 'px')
+		</p>
+		<input type="hidden" name="pp_thesaurus_submit" value="1" />
+	<?php
+	}
+
+
+	public function createLink ($sText, $sUri, $sPrefLabel, $sDefinition, $bShowLink=false) {
+		if (empty($sDefinition)) {
+			if ($bShowLink) {
+				$sPage = self::getItemLink();
+				$sLink = '<a class="ppThesaurus" href="' . $sPage . '?uri=' . $sUri . '" title="Term: ' . $sPrefLabel . '">' . $sText . '</a>';
+			} else {
+				$sLink = $sText;
+			}
+		} else {
+			$sPage = self::getItemLink();
+			$sLink = '<a class="ppThesaurus" href="' . $sPage . '?uri=' . $sUri . '" title="Term: ' . $sPrefLabel . '">' . $sText . '</a>';
+			$sLink .= '<span style="display:none;">' . $sDefinition . '</span>';
+		}
+
+		return $sLink;
+	}
+
+
+	public function getItemLink () {
+		$oPage = PPThesaurusPage::getInstance();
+		return get_bloginfo('url', 'display') . '/' . $oPage->thesaurusPage->post_name . '/' . $oPage->itemPage->post_name;
+	}
+
+
+	protected function createLinks ($aItemList) {
+		if (empty($aItemList)) {
+			return array();
+		}
+
+		$oPPTM = PPThesaurusManager::getInstance();
+		$aLinks = array();
+		foreach ($aItemList as $oItem) {
+			$sDefinition = $oPPTM->getDefinition($oItem->uri, $oItem->definition, true, true);
+			$aLinks[] = $this->createLink( $oItem->prefLabel, $oItem->uri, $oItem->prefLabel, $sDefinition, true);
+		}
+
+		return $aLinks;
 	}
 }

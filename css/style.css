@@ -18,8 +18,10 @@ padding-top: 5px;
 
 a.ppThesaurus[href^="http://"], a.ppThesaurus[href^="https://"], 
 a.ppThesaurus, a.ppThesaurus:link {
-    background: url("thesaurus.png") no-repeat scroll right 0 transparent;
-    padding-right: 14px;
+border-bottom: 1px dotted #444444;
+margin: 0;
+padding: 0;
+text-decoration: none;
 }
 
 
