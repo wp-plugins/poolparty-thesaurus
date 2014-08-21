@@ -9,8 +9,7 @@ Stable tag: trunk
 
 
 
-
-PoolParty Thesaurus plugin makes websites more understandable. Blogs benefit from linking posts with key terms automatically. The plugin uses SKOS vocabularies.
+PoolParty plugin makes websites more understandable. Blogs benefit from linking posts with key terms automatically. The plugin uses SKOS vocabularies
 
 
 == Description ==
