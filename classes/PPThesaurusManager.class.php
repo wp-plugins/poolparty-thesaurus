@@ -9,10 +9,11 @@ function getWpPrefix () {
 class PPThesaurusManager {
 
 	protected static $oInstance;
+	protected static $PLACEHOLDER_CONTENT = 'pp-contentplaceholder';
+	protected static $PLACEHOLDER_TERM = 'pp-termplaceholder';
+	protected static $PLACEHOLDER_TAG = 'pp-tagplaceholder';
+
 	public static $sSkosUri = 'http://www.w3.org/2004/02/skos/core#';
-	protected static 	$PLACEHOLDER_CONTENT = 'pp-contentplaceholder';
-	protected static 	$PLACEHOLDER_TERM = 'pp-termplaceholder';
-	protected static 	$PLACEHOLDER_TAG = 'pp-tagplaceholder';
 
 	protected $oStore;
 	protected $bStoreExists;
@@ -58,6 +59,13 @@ class PPThesaurusManager {
 		);
 
 		return $aConfig;
+	}
+
+
+	public function dropStore () {
+		// Don't use the object store otherwise it isn't possible to delete tables multi site wordpress.
+		$oStore = ARC2::getStore(self::getStoreConfig());
+		$oStore->drop();
 	}
 
 	
@@ -224,7 +232,7 @@ class PPThesaurusManager {
 		}
 
 		$iCount = count($this->aNoParseContent);
-		$this->aNoParseContent[] = do_shortcode($sContent);
+    $this->aNoParseContent[] = $sContent;
 		return '<' . self::$PLACEHOLDER_CONTENT . '>' . $iCount . '</' . self::$PLACEHOLDER_CONTENT . '>';
 	}
 
@@ -255,7 +263,7 @@ class PPThesaurusManager {
 		$iTagMatchCount = count($aTagMatches);
 		for (; $i<$iTagMatchCount; $i++) {
 			$sReplace = '<' . self::$PLACEHOLDER_TAG . '>' . $i . '</' . self::$PLACEHOLDER_TAG . '>';
-		    $sContent = str_replace($aTagMatches[$i], $sReplace, $sContent);
+	    $sContent = str_replace($aTagMatches[$i], $sReplace, $sContent);
 		}
 
 		// Die Begriffe im Content suchen und mit einem Placeholder ersetzen (nur beim 1. Fund pro Begriff)
@@ -285,9 +293,9 @@ class PPThesaurusManager {
 					$oTag->outertext = $this->aNoParseContent[$iNumber];
 					break;
 				case self::$PLACEHOLDER_TERM:
-					$oConcept 		= $aConcepts[$iNumber];
-					$sDefinition 	= $this->getDefinition($oConcept->uri, $oConcept->definition, true);
-					$sLink 			= pp_thesaurus_get_link($aTermMatches[$iNumber], $oConcept->uri, $oConcept->prefLabel, $sDefinition);
+					$oConcept = $aConcepts[$iNumber];
+					$sDefinition = $this->getDefinition($oConcept->uri, $oConcept->definition, true);
+					$sLink = PPThesaurusTemplate::createLink($aTermMatches[$iNumber], $oConcept->uri, $oConcept->prefLabel, $sDefinition);
 					$oTag->outertext = $sLink;
 					break;
 				case self::$PLACEHOLDER_TAG:
@@ -296,6 +304,9 @@ class PPThesaurusManager {
 			}
 		}
 		$sContent = $oDom->save();
+    if (!empty($this->aNoParseContent)) {
+      $sContent = do_shortcode($sContent);
+    }
 
 		return $sContent;
 	}
@@ -907,12 +918,6 @@ class PPThesaurusManager {
 		$sDefinition  = '<span class="PPThesaurusDefInfo">' . sprintf(__('Definition not available in %s', 'pp-thesaurus'), strtolower($sSelLang)) . '.</span>';
 		$sDefinition .= '<strong>' . sprintf(__('Definition in %s', 'pp-thesaurus'), strtolower($sDefLang)) . '</strong>:<br />';
 		return $sDefinition;
-	}
-
-
-	public function getItemLink () {
-		$oPage = PPThesaurusPage::getInstance();
-		return get_bloginfo('url', 'display') . '/' . $oPage->thesaurusPage->post_name . '/' . $oPage->itemPage->post_name;
 	}
 
 
