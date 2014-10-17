@@ -41,15 +41,15 @@ class PPThesaurus {
 				add_shortcode('ppt-itemlist', array($oPPTTemplate, 'showItemList'));
 				add_shortcode('ppt-itemdetails', array($oPPTTemplate, 'showItemDetails'));
 				add_shortcode('ppt-noparse', array($oPPTManager, 'cutContent'));
-
-				// Add an action link pointing to the options page.
-				$plugin_basename = plugin_basename(plugin_dir_path(realpath(dirname( __FILE__ ))) . $this->slug . '.php' );
-				add_filter('plugin_action_links_' . $plugin_basename, array($this, 'addActionLinks'));
 			}
 		} else {
-			add_action('init', 'pp_thesaurus_init_textdomain');
-			add_action('admin_menu', 'pp_thesaurus_settings_request');
+			add_action('init', array($this, 'loadTextdomain'));
+			add_action('admin_menu', array($this, 'requestSettingsPage'));
 		}
+
+		// Add an action link pointing to the options page.
+		$plugin_basename = plugin_basename(plugin_dir_path(realpath(dirname( __FILE__ ))) . $this->slug . '.php' );
+		add_filter('plugin_action_links_' . $plugin_basename, array($this, 'addActionLinks'));
 	}
 
 

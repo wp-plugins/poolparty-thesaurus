@@ -64,8 +64,10 @@ class PPThesaurusManager {
 
 	public function dropStore () {
 		// Don't use the object store otherwise it isn't possible to delete tables multi site wordpress.
-		$oStore = ARC2::getStore(self::getStoreConfig());
-		$oStore->drop();
+		if (class_exists('ARC2')) {
+			$oStore = ARC2::getStore(self::getStoreConfig());
+			$oStore->drop();
+		}
 	}
 
 	
@@ -247,7 +249,7 @@ class PPThesaurusManager {
 		// Entsprechende HTML-Tags suchen (die Probleme machen koennten) und mit einem Placeholder ersetzen
 		$oDom = new simple_html_dom();
 		$oDom->load($sContent);
-		$oTags = $oDom->find('a, label, map, select, sub, sup');
+		$oTags = $oDom->find('a, label, map, select, sub, sup, code');
 		$aTagMatches = array();
 		$i = 0;
 		foreach ($oTags as $oTag) {
@@ -315,18 +317,24 @@ class PPThesaurusManager {
 	protected function parseAllowed () {
 		global $post;
 
-		// is automatic linking disabled?
+		$oPage = PPThesaurusPage::getInstance();
+
+		// Is the plugin configured?
+		if ($oPage->thesaurusId <= 0) {
+			return false;
+		}
+
+		// Is automatic linking disabled?
 		if (get_option('PPThesaurusPopup') == 2) {
 			return false;
 		}
 
-		// is the content for a feed or an archive?
+		// Is the content for a feed or an archive?
 		if (is_feed() || is_archive()) {
 			return false;
 		}
 
-		// is the page a thesaurus page?
-		$oPage = PPThesaurusPage::getInstance();
+		// Is the page a thesaurus page?
 		$aPages = array($oPage->thesaurusId, $oPage->itemPage->ID);
 		if (in_array($post->ID, $aPages)) {
 			return false;

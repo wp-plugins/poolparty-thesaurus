@@ -6,14 +6,14 @@ if(!defined('WP_UNINSTALL_PLUGIN')){
 
 
 
-
 define('PP_THESAURUS_PLUGIN_DIR', plugin_dir_path(__FILE__));
 
 require_once(PP_THESAURUS_PLUGIN_DIR . 'classes/PPThesaurus.class.php');
 require_once(PP_THESAURUS_PLUGIN_DIR . 'classes/PPThesaurusManager.class.php');
 
-$oPPThesaurus = PPThesaurus::getInstance();
 
+// Needed for loading the ARC2 library
+$oPPThesaurus = PPThesaurus::getInstance();
 
 // Remove options and glossary pages on plugin delete
 if (function_exists('is_multisite') && is_multisite()) {
@@ -37,14 +37,17 @@ if (function_exists('is_multisite') && is_multisite()) {
 function delete_glossary_pages() {
 	$pageId = get_option('PPThesaurusId');
 
-	// Get and delete all sub pages
-	$subPages = get_pages(array('child_of' => $pageId));
-	foreach ($subPages as $subPage) {
-		wp_delete_post($subPage->ID);
-	}
+	// Delete glossary pages if it is set
+	if ($pageId > 0) {
+		// Get and delete all sub pages
+		$subPages = get_pages(array('child_of' => $pageId));
+		foreach ($subPages as $subPage) {
+			wp_delete_post($subPage->ID, TRUE);
+		}
 
-	// Delete the main glossary page
-	wp_delete_post($pageId, TRUE);
+		// Delete the main glossary page
+		wp_delete_post($pageId, TRUE);
+	}
 }
 
 /*

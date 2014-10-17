@@ -7,7 +7,7 @@
  * Plugin Name: PoolParty Thesaurus
  * Plugin URI: http://poolparty.biz
  * Description: This plugin imports a SKOS thesaurus via <a href="https://github.com/semsol/arc2">ARC2</a>. It highlighs terms and generates links automatically in any page which contains terms from the thesaurus.
- * Version: 2.5.0
+ * Version: 2.5.1
  * Author: Kurt Moser
  * Author URI: http://www.semantic-web.at/users/kurt-moser
  * Text Domain: pp-thesaurus

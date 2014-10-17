@@ -95,6 +95,10 @@ The tooltip consists of a CSS file and three PNG pictures which can be found in 
 
 
 == Changelog ==
+= 2.5.1 - 17.10.2014 =
+* Resolved Problem with the activation and the deinstallation if the ARC2 library is not installed
+* Resolved Problem with the HTML tag <code>
+
 = 2.5.0 - 21.08.2014 =
 * Added Multi site support
 * Adapted the plugin settings page
