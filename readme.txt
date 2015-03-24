@@ -5,7 +5,7 @@ Contributors: kurt-moser
 Tags: poolparty, thesaurus, glossary, skos, rdf
 Requires at least: 3.1
 Tested up to: 4.1
-Stable tag: 2.6
+Stable tag: 2.6.1
 
 
 
@@ -95,6 +95,9 @@ The tooltip consists of a CSS file and three PNG pictures which can be found in 
 
 
 == Changelog ==
+= 2.6.1 - 24.03.2015 =
+* Bug fixes on the ARC2 installation function
+
 = 2.6 - 19.02.2015 =
 * Improved speed of the linking posts with key terms
 * Added new filter in the configurations to exclude terms from automated linking
