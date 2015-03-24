@@ -7,7 +7,7 @@
  * Plugin Name: PoolParty Thesaurus
  * Plugin URI: http://poolparty.biz
  * Description: This plugin imports a SKOS thesaurus via <a href="https://github.com/semsol/arc2">ARC2</a>. It highlighs terms and generates links automatically in any page which contains terms from the thesaurus.
- * Version: 2.5.1
+ * Version: 2.6.1
  * Author: Kurt Moser
  * Author URI: http://www.semantic-web.at/users/kurt-moser
  * Text Domain: pp-thesaurus
@@ -16,7 +16,7 @@
 
 
 
-/*	Copyright 2010-2011  Kurt Moser  (email: k.moser@semantic-web.at)
+/*	Copyright 2010-2015  Kurt Moser  (email: k.moser@semantic-web.at)
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2, as 
@@ -36,34 +36,48 @@
 defined('ABSPATH') or die('No script kiddies please!');
 
 
-/*
- * Defines
+/**
+ * Defines.
  */
 define('PP_THESAURUS_PLUGIN_DIR', plugin_dir_path(__FILE__));
-define('PP_THESAURUS_ARC_URL', 'https://github.com/semsol/arc2/tarball/master');
 
-/*
- * Include files
+/**
+ * Include configurations and classes.
  */
+require_once(PP_THESAURUS_PLUGIN_DIR . 'pp-thesaurus-config.php');
 require_once(PP_THESAURUS_PLUGIN_DIR . 'classes/PPThesaurus.class.php');
 require_once(PP_THESAURUS_PLUGIN_DIR . 'classes/PPThesaurusManager.class.php');
+require_once(PP_THESAURUS_PLUGIN_DIR . 'classes/PPThesaurusCache.class.php');
 require_once(PP_THESAURUS_PLUGIN_DIR . 'classes/PPThesaurusPage.class.php');
 require_once(PP_THESAURUS_PLUGIN_DIR . 'classes/PPThesaurusItem.class.php');
 require_once(PP_THESAURUS_PLUGIN_DIR . 'classes/PPThesaurusTemplate.class.php');
-require_once(PP_THESAURUS_PLUGIN_DIR . 'classes/PPThesaurus.widget.class.php');
+require_once(PP_THESAURUS_PLUGIN_DIR . 'classes/PPThesaurusWidget.class.php');
+require_once(PP_THESAURUS_PLUGIN_DIR . 'classes/PPThesaurusARC2Store.class.php');
 require_once(PP_THESAURUS_PLUGIN_DIR . 'classes/simple_html_dom.php');
 
-
+/**
+ * Enable error reporting.
+ */
 /*
+error_reporting(E_ALL);
+ini_set('display_errors', '1');
+*/
+
+/**
  * Register hooks that are fired when the plugin is activated.
  * When the plugin is deleted, the uninstall.php file is loaded.
  */
-register_activation_hook( __FILE__, array( 'PPThesaurus', 'activate' ) );
+$oPPThesaurus = PPThesaurus::getInstance();
+register_activation_hook( __FILE__, array( $oPPThesaurus, 'activate' ));
 
-
-/*
- * Load the plugin and widget
+/**
+ * Load the plugin and widget.
  */
-add_action('plugins_loaded', array('PPThesaurus', 'getInstance'));
-add_action('widgets_init', array('PPThesaurus', 'registerWidget') );
+add_action('plugins_loaded', array( $oPPThesaurus, 'getInstance' ));
+add_action('widgets_init', array( $oPPThesaurus, 'registerWidget' ));
+
+function PPThesaurusGetWpPrefix () {
+	global $wpdb;
+	return $wpdb->prefix;
+}
 

@@ -3,9 +3,9 @@ Author URI: http://www.semantic-web.at/users/kurt-moser
 Plugin URI: http://poolparty.biz
 Contributors: kurt-moser
 Tags: poolparty, thesaurus, glossary, skos, rdf
-Requires at least: 2.9
-Tested up to: 2.9
-Stable tag: trunk
+Requires at least: 3.1
+Tested up to: 4.1
+Stable tag: 2.6.1
 
 
 
@@ -95,6 +95,13 @@ The tooltip consists of a CSS file and three PNG pictures which can be found in 
 
 
 == Changelog ==
+= 2.6.1 - 24.03.2015 =
+* Bug fixes on the ARC2 installation function
+
+= 2.6 - 19.02.2015 =
+* Improved speed of the linking posts with key terms
+* Added new filter in the configurations to exclude terms from automated linking
+
 = 2.5.1 - 17.10.2014 =
 * Resolved Problem with the activation and the deinstallation if the ARC2 library is not installed
 * Resolved Problem with the HTML tag <code>
